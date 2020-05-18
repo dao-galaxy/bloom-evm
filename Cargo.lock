@@ -97,6 +97,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloom-evm"
+version = "0.1.0"
+dependencies = [
+ "docopt",
+ "ethereum-types",
+ "evm",
+ "hex",
+ "kvdb",
+ "kvdb-rocksdb",
+ "parity-bytes",
+ "parity-scale-codec",
+ "rlp",
+ "rustc-hex",
+ "serde",
+ "sha3",
+ "structopt",
+]
+
+[[package]]
 name = "byte-slice-cast"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -290,25 +309,6 @@ dependencies = [
  "evm-core",
  "primitive-types",
  "sha3",
-]
-
-[[package]]
-name = "evmbin"
-version = "0.1.0"
-dependencies = [
- "docopt",
- "ethereum-types",
- "evm",
- "hex",
- "kvdb",
- "kvdb-rocksdb",
- "parity-bytes",
- "parity-scale-codec",
- "rlp",
- "rustc-hex",
- "serde",
- "sha3",
- "structopt",
 ]
 
 [[package]]
