@@ -108,6 +108,7 @@ dependencies = [
  "kvdb-rocksdb",
  "parity-bytes",
  "parity-scale-codec",
+ "primitive-types",
  "rlp",
  "rustc-hex",
  "serde",
