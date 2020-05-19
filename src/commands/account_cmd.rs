@@ -20,7 +20,7 @@ pub struct AccountCmd {
 
 #[derive(StructOpt,Debug,Clone)]
 enum Command {
-	/// Query the information for given address
+	/// Query account information
 	Query{
 
 		/// External address or contract address
@@ -32,13 +32,13 @@ enum Command {
 		storage_trie:bool
 	},
 
-	/// Create external address with given info
+	/// Create external account
 	Create{
 		/// External address will be created
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Value for the given address(Wei), default 1ether
+		/// Value for the given address(Wei),  default 1 ether
 		#[structopt(long = "value",default_value = "1000000000000000000000000")]
 		value: String,
 
@@ -47,7 +47,7 @@ enum Command {
 		nonce: String,
 	},
 
-	/// Modify account information
+	/// Modify external account information
 	Modify{
 		/// External address will be modified
 		#[structopt(long = "address")]
@@ -62,7 +62,7 @@ enum Command {
 		nonce: String,
 	},
 
-	/// Transfer value from A to B
+	/// Transfer value from one to another
 	Transfer{
 		/// The address from which transfer from
 		#[structopt(long = "from")]
