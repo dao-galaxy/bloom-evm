@@ -9,8 +9,9 @@ use std::collections::BTreeMap;
 use evm::Config;
 
 
+// target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
+// target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
 
-// ./target/debug/evmbin account --from 0000000000000000000000000000000000000001
 #[derive(Debug, StructOpt, Clone)]
 pub struct AccountCmd {
 	#[structopt(subcommand)]
@@ -43,7 +44,7 @@ enum Command {
 
 		/// Nonce for the given address, default 0
 		#[structopt(long = "nonce",default_value = "0")]
-		nonce: u64,
+		nonce: String,
 	},
 
 	/// Modify account information
@@ -58,7 +59,7 @@ enum Command {
 
 		/// Nonce for the given address
 		#[structopt(long = "nonce")]
-		nonce: u64,
+		nonce: String,
 	},
 
 	/// Transfer value from A to B
@@ -106,7 +107,7 @@ impl fmt::Display for Account {
 
 			Account::CONTRACT(address,value,nonce,code_hash,storage_trie) => {
 				write!(f,"Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
-					   address,value,nonce,code_hash,storage_trie)
+					   address, value, nonce, code_hash, storage_trie)
 			},
 		}
 	}
@@ -131,7 +132,7 @@ impl AccountCmd {
 	pub fn run(&self,mut backend: MemoryBackend) {
 		match &self.cmd {
 			Command::Query {address,storage_trie} => {
-				let from:H160 = address.parse().expect("From should be a valid address");
+				let from:H160 = address.parse().expect("--address argument must be a valid address");
 				if !storage_trie {
 					let account = Account::new(&backend,from);
 					println!("{}",account);
@@ -141,10 +142,11 @@ impl AccountCmd {
 			},
 
 			Command::Create {address,value,nonce} => {
-				let from:H160 = address.parse().expect("address should be a valid address");
+				let from:H160 = address.parse().expect("--address argument must be a valid address");
 				//let value:U256 = value.parse().expect("value must be a valid value");
-				let value:U256 = parse(value.as_str()).expect("value must be a valid value");
-				let nonce:U256 = U256::from(*nonce);
+				let value:U256 = parse(value.as_str()).expect("--value argument must be a valid number");
+				//let nonce:U256 = U256::from(*nonce);
+				let nonce:U256 = parse(nonce.as_str()).expect("--nonce argument must be a valid number");
 
 				let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
@@ -165,9 +167,10 @@ impl AccountCmd {
 			},
 
 			Command::Modify {address,value,nonce} => {
-				let from:H160 = address.parse().expect("address should be a valid address");
-				let value:U256 = parse(value.as_str()).expect("value must be a valid value");
-				let nonce:U256 = U256::from(*nonce);
+				let from:H160 = address.parse().expect("--address argument must be a valid address");
+				let value:U256 = parse(value.as_str()).expect("--value argument must be a valid number");
+				//let nonce:U256 = U256::from(*nonce);
+				let nonce:U256 = parse(nonce.as_str()).expect("--nonce argument must be a valid number");
 
 				let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
@@ -193,9 +196,9 @@ impl AccountCmd {
 
 			Command::Transfer {from,to, value} => {
 
-				let from:H160 = from.parse().expect("from address should be a valid address");
-				let to:H160 = to.parse().expect("to address should be a valid address");
-				let value:U256 = parse(value.as_str()).expect("value must be a valid value");
+				let from:H160 = from.parse().expect("--from argument must be a valid address");
+				let to:H160 = to.parse().expect("--to argument must be a valid address");
+				let value:U256 = parse(value.as_str()).expect("--value argument must be a valid number");
 
 				let config = Config::istanbul();
 				let gas_limit = 100000;
