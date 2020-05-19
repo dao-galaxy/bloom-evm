@@ -1,9 +1,13 @@
 use structopt::StructOpt;
 use evm::backend::{Backend, ApplyBackend};
 use evm::backend::{MemoryBackend,Apply,Basic};
+use evm::executor::StackExecutor;
+use evm::Transfer;
 use primitive_types::{H160, H256, U256};
 use std::fmt;
 use std::collections::BTreeMap;
+use evm::Config;
+
 
 
 // ./target/debug/evmbin account --from 0000000000000000000000000000000000000001
@@ -55,6 +59,21 @@ enum Command {
 		/// Nonce for the given address
 		#[structopt(long = "nonce")]
 		nonce: u64,
+	},
+
+	/// Transfer value from A to B
+	Transfer{
+		/// The address from which transfer from
+		#[structopt(long = "from")]
+		from: String,
+
+		/// The address from which transfer to
+		#[structopt(long = "to")]
+		to: String,
+
+		/// Value for transfer
+		#[structopt(long = "value")]
+		value: String,
 	}
 }
 
@@ -65,7 +84,7 @@ enum Account{
 }
 
 impl Account {
-	pub fn new(backend: MemoryBackend,address: H160) -> Self {
+	pub fn new(backend: &MemoryBackend,address: H160) -> Self {
 		let account = backend.basic(address.clone());
 		let code_size = backend.code_size(address.clone());
 		if code_size == 0 {
@@ -109,12 +128,12 @@ fn parse(s: &str) -> Result<U256,String> {
 
 
 impl AccountCmd {
-	pub fn run(&self, mut backend: MemoryBackend) {
+	pub fn run(&self,mut backend: MemoryBackend) {
 		match &self.cmd {
 			Command::Query {address,storage_trie} => {
 				let from:H160 = address.parse().expect("From should be a valid address");
 				if !storage_trie {
-					let account = Account::new(backend,from);
+					let account = Account::new(&backend,from);
 					println!("{}",account);
 				}else {
 					println!("no root");
@@ -141,7 +160,7 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(backend,from);
+				let account = Account::new(&backend,from);
 				println!("{}",account);
 			},
 
@@ -168,9 +187,43 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(backend,from);
+				let account = Account::new(&backend,from);
 				println!("{}",account);
+			},
+
+			Command::Transfer {from,to, value} => {
+
+				let from:H160 = from.parse().expect("from address should be a valid address");
+				let to:H160 = to.parse().expect("to address should be a valid address");
+				let value:U256 = parse(value.as_str()).expect("value must be a valid value");
+
+				let config = Config::istanbul();
+				let gas_limit = 100000;
+				let mut executor = StackExecutor::new(
+					&backend,
+					gas_limit as usize,
+					&config,
+				);
+
+				match executor.transfer(Transfer{
+					source:from,
+					target:to,
+					value,
+				}) {
+					Ok(_) => {
+						let account = Account::new(&backend,from);
+						println!("{}",account);
+
+						let account = Account::new(&backend,to);
+						println!("{}",account);
+					},
+					Err(err) => {
+						println!("Transfer failed: {:?}",err);
+					}
+				}
 			}
+
+
 		}
 
 	}
