@@ -46,6 +46,38 @@ enum Command {
         #[structopt(long = "code-file")]
         code_file: Option<String>,
 
+    },
+
+    /// Message call
+    Call{
+        /// The address which send messageCall
+        #[structopt(long = "from")]
+        from: String,
+
+        /// The value for messageCall(Wei)
+        #[structopt(long = "value")]
+        value: String,
+
+        /// The receiver address for messageCall(Wei)
+        #[structopt(long = "to")]
+        to: String,
+
+        /// The gas limit for messageCall
+        #[structopt(long = "gas")]
+        gas: u32,
+
+        /// The gas price for messageCall(Wei)
+        #[structopt(long = "gas-price")]
+        gas_price: String,
+
+        /// The input data for messageCall
+        #[structopt(long = "data")]
+        data: Option<String>,
+
+        /// The input data file for messageCall
+        #[structopt(long = "data-file")]
+        data_file: Option<String>,
+
     }
 }
 
@@ -114,6 +146,64 @@ impl ContractCmd {
 
                 let account = account_cmd::Account::new(&backend,create_address.clone());
                 println!("Create contract successful, {}", account);
+            }
+
+            Command::Call {from,value,to,gas,gas_price,data,data_file} => {
+                let from: H160 = from.parse().expect("From should be a valid address");
+                let value = U256::from_dec_str(value.as_str()).expect("Value is invalid");
+                let to: H160 = to.parse().expect("To should be a valid address");
+                let gas_limit = *gas;
+                let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
+
+                let mut contents = String::new();
+
+                let data = match data {
+                    Some(d) => {
+                        Ok(d)
+                    }
+                    None => {
+                        let ret = match data_file {
+                            Some(file) => {
+                                let mut f = File::open(file).expect(" data file not found");
+
+                                f.read_to_string(&mut contents)
+                                    .expect("something went wrong reading the file");
+                                Ok(&contents)
+                            }
+
+                            None => {
+                                Err(())
+                            }
+                        };
+                        ret
+                    }
+                }.unwrap_or(&contents);
+
+                let input = hex::decode(data.as_str()).expect("Input is invalid");
+                let config = Config::istanbul();
+                let executor = StackExecutor::new(
+                    &backend,
+                    gas_limit as usize,
+                    &config,
+                );
+                let nonce = Some(executor.nonce(from.clone()));
+
+                executer::execute_evm(
+                    from.clone(),
+                    value,
+                    gas_limit,
+                    gas_price,
+                    nonce,
+                    |executor| ((), executor.transact_call(
+                        from,
+                        to,
+                        value,
+                        input,
+                        gas_limit as usize,
+                    )),
+                ).expect("Call message failed");
+
+                println!("Contract Called, State OK.");
             }
         }
     }
