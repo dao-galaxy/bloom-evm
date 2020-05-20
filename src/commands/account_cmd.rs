@@ -38,22 +38,22 @@ enum Command {
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Value for the given address(Wei),  default 1 ether
-		#[structopt(long = "value",default_value = "1000000000000000000000000")]
+		/// Value(Wei) for the given address,  default 1 ether (18 zeros)
+		#[structopt(long = "value", default_value = "1000000000000000000")]
 		value: String,
 
 		/// Nonce for the given address, default 0
-		#[structopt(long = "nonce",default_value = "0")]
+		#[structopt(long = "nonce", default_value = "0")]
 		nonce: String,
 	},
 
-	/// Modify external account information
+	/// Modify external account
 	Modify{
 		/// External address will be modified
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Value for the given address(Wei)
+		/// Value(Wei) for the given address
 		#[structopt(long = "value")]
 		value: String,
 
