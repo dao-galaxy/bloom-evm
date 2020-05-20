@@ -8,7 +8,7 @@ use structopt::StructOpt;
 use evm::Config;
 use std::fs::File;
 use std::io::Read;
-
+use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
 // ./target/debug/evmbin contract --from 0000000000000000000000000000000000000001 --to 0000000000000000000000000000000000000002 --value 0 --gas_limit 100000 --gas_price 0 --input 6000
 #[derive(Debug, StructOpt, Clone)]
@@ -88,10 +88,10 @@ impl ContractCmd {
         match &self.cmd {
             Command::Deploy {from,value,gas,gas_price,code,code_file} => {
 
-                let from: H160 = from.parse().expect("From should be a valid address");
+                let from = H160::from_str(from).expect("From should be a valid address");
                 let value = U256::from_dec_str(value.as_str()).expect("Value is invalid");
-                let gas_limit = *gas;
                 let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
+                let gas_limit = *gas;
 
                 let mut contents = String::new();
 
@@ -149,11 +149,11 @@ impl ContractCmd {
             }
 
             Command::Call {from,value,to,gas,gas_price,data,data_file} => {
-                let from: H160 = from.parse().expect("From should be a valid address");
+                let from = H160::from_str(from).expect("From should be a valid address");
+                let to = H160::from_str(to).expect("To should be a valid address");
                 let value = U256::from_dec_str(value.as_str()).expect("Value is invalid");
-                let to: H160 = to.parse().expect("To should be a valid address");
-                let gas_limit = *gas;
                 let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
+                let gas_limit = *gas;
 
                 let mut contents = String::new();
 

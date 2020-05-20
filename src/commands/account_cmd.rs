@@ -3,11 +3,11 @@ use evm::backend::{Backend, ApplyBackend};
 use evm::backend::{MemoryBackend,Apply,Basic};
 use evm::executor::StackExecutor;
 use evm::Transfer;
-use primitive_types::{H160, H256, U256};
+use ethereum_types::{H160, H256, U256};
 use std::fmt;
 use std::collections::BTreeMap;
 use evm::Config;
-
+use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
 // target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
@@ -89,10 +89,10 @@ impl Account {
 		let account = backend.basic(address.clone());
 		let code_size = backend.code_size(address.clone());
 		if code_size == 0 {
-			Account::EXTERNAL(address.clone(),account.balance,account.nonce)
+			Account::EXTERNAL(address.clone(), account.balance, account.nonce)
 		}else {
 			let code_hash = backend.code_hash(address.clone());
-			Account::CONTRACT(address.clone(),account.balance,account.nonce,code_hash.clone(),code_hash.clone())
+			Account::CONTRACT(address.clone(), account.balance, account.nonce, code_hash.clone(), code_hash.clone())
 		}
 	}
 }
@@ -101,11 +101,11 @@ impl fmt::Display for Account {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
 		match self {
-			Account::EXTERNAL(address,value,nonce) => {
+			Account::EXTERNAL(address, value, nonce) => {
 				write!(f,"External Account Info: {{address: {:?}, balance: {:?}, nonce: {:?} }}",address,value,nonce)
 			},
 
-			Account::CONTRACT(address,value,nonce,code_hash,storage_trie) => {
+			Account::CONTRACT(address, value, nonce, code_hash, storage_trie) => {
 				write!(f,"Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
 					   address, value, nonce, code_hash, storage_trie)
 			},
@@ -117,10 +117,10 @@ impl fmt::Display for Account {
 impl AccountCmd {
 	pub fn run(&self,mut backend: MemoryBackend) {
 		match &self.cmd {
-			Command::Query {address,storage_trie} => {
-				let from:H160 = address.parse().expect("--address argument must be a valid address");
+			Command::Query {address, storage_trie} => {
+				let from = H160::from_str(address).expect("--address argument must be a valid address");
 				if !storage_trie {
-					let account = Account::new(&backend,from);
+					let account = Account::new(&backend, from);
 					println!("{}", account);
 				} else {
 					println!("--storage_trie has not yet supported!");
@@ -128,10 +128,8 @@ impl AccountCmd {
 			},
 
 			Command::Create {address,value,nonce} => {
-				let from:H160 = address.parse().expect("--address argument must be a valid address");
-				//let value:U256 = value.parse().expect("value must be a valid value");
+				let from = H160::from_str(address).expect("--address argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
-				//let nonce:U256 = U256::from(*nonce);
 				let nonce = U256::from_dec_str(nonce.as_str()).expect("--nonce argument must be a valid number");
 
 				let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
@@ -155,7 +153,6 @@ impl AccountCmd {
 			Command::Modify {address,value,nonce} => {
 				let from:H160 = address.parse().expect("--address argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
-				//let nonce:U256 = U256::from(*nonce);
 				let nonce = U256::from_dec_str(nonce.as_str()).expect("--nonce argument must be a valid number");
 
 				let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
