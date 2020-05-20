@@ -1,5 +1,4 @@
 mod executer;
-mod parser;
 mod commands;
 
 use commands::Subcommand;

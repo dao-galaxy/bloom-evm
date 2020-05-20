@@ -115,7 +115,7 @@ pub fn execute_evm<F, R>(
 	let (values, logs) = executor.deconstruct();
 	backend.apply(values, logs, true);
 
-	println!("{:?}", &backend);
+	//println!("{:?}", &backend);
 
 	ret
 }
