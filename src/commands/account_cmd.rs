@@ -20,7 +20,7 @@ pub struct AccountCmd {
 
 #[derive(StructOpt,Debug,Clone)]
 enum Command {
-	/// Query account information
+	/// Query external or contract account information
 	Query{
 
 		/// External address or contract address
