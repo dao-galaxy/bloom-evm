@@ -80,8 +80,8 @@ enum Command {
 
 #[derive(Debug)]
 enum Account{
-	EXTERNAL(H160,U256,U256),
-	CONTRACT(H160,U256,U256,H256,H256),
+	EXTERNAL(H160, U256, U256),
+	CONTRACT(H160, U256, U256, H256, H256),
 }
 
 impl Account {
@@ -135,9 +135,9 @@ impl AccountCmd {
 				let from:H160 = address.parse().expect("--address argument must be a valid address");
 				if !storage_trie {
 					let account = Account::new(&backend,from);
-					println!("{}",account);
-				}else {
-					println!("no root");
+					println!("{}", account);
+				} else {
+					println!("--storage_trie has not yet supported!");
 				}
 			},
 
@@ -163,7 +163,7 @@ impl AccountCmd {
 
 				backend.apply(applies,Vec::new(),false);
 				let account = Account::new(&backend,from);
-				println!("{}",account);
+				println!("{}", account);
 			},
 
 			Command::Modify {address,value,nonce} => {
@@ -215,13 +215,13 @@ impl AccountCmd {
 				}) {
 					Ok(_) => {
 						let account = Account::new(&backend,from);
-						println!("{}",account);
+						println!("{}", account);
 
 						let account = Account::new(&backend,to);
-						println!("{}",account);
+						println!("{}", account);
 					},
 					Err(err) => {
-						println!("Transfer failed: {:?}",err);
+						println!("Transfer failed: {:?}", err);
 					}
 				}
 			}
