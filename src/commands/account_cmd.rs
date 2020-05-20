@@ -62,7 +62,7 @@ enum Command {
 		nonce: String,
 	},
 
-	/// Transfer value from one to another
+	/// Transfer value from one external account to another
 	Transfer{
 		/// The address from which transfer from
 		#[structopt(long = "from")]
