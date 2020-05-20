@@ -151,7 +151,7 @@ impl AccountCmd {
 			},
 
 			Command::Modify {address,value,nonce} => {
-				let from:H160 = address.parse().expect("--address argument must be a valid address");
+				let from = H160::from_str(address).expect("--address argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
 				let nonce = U256::from_dec_str(nonce.as_str()).expect("--nonce argument must be a valid number");
 
@@ -174,13 +174,13 @@ impl AccountCmd {
 
 				backend.apply(applies,Vec::new(),false);
 				let account = Account::new(&backend,from);
-				println!("{}",account);
+				println!("{}", account);
 			},
 
-			Command::Transfer {from,to, value} => {
+			Command::Transfer {from, to, value} => {
 
-				let from:H160 = from.parse().expect("--from argument must be a valid address");
-				let to:H160 = to.parse().expect("--to argument must be a valid address");
+				let from = H160::from_str(from).expect("--from argument must be a valid address");
+				let to  = H160::from_str(to).expect("--to argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
 
 				let config = Config::istanbul();
@@ -197,10 +197,10 @@ impl AccountCmd {
 					value,
 				}) {
 					Ok(_) => {
-						let account = Account::new(&backend,from);
+						let account = Account::new(&backend, from);
 						println!("{}", account);
 
-						let account = Account::new(&backend,to);
+						let account = Account::new(&backend, to);
 						println!("{}", account);
 					},
 					Err(err) => {
