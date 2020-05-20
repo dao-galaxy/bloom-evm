@@ -2,6 +2,7 @@ mod account_cmd;
 mod call_message_cmd;
 mod create_contract_cmd;
 mod deposit_cmd;
+mod contract_cmd;
 
 use std::collections::BTreeMap;
 
@@ -10,6 +11,7 @@ use account_cmd::AccountCmd;
 use call_message_cmd::CallMessageCmd;
 use create_contract_cmd::CreateContractCmd;
 use deposit_cmd::DepositCmd;
+use contract_cmd::ContractCmd;
 
 use ethereum_types::{U256, H160};
 use evm::backend::MemoryBackend as Backend;
@@ -24,6 +26,7 @@ pub enum Subcommand {
 	Call(CallMessageCmd),
 	Create(CreateContractCmd),
 	Deposit(DepositCmd),
+	Contract(ContractCmd),
 }
 
 impl Subcommand {
@@ -61,6 +64,9 @@ impl Subcommand {
 			}
 			Subcommand::Deposit(cmd) => {
 				cmd.run(&mut executor);
+			}
+			Subcommand::Contract(cmd) => {
+				cmd.run(backend);
 			}
 		}
 	}
