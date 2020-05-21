@@ -22,7 +22,7 @@ pub struct AccountCmd {
 #[derive(Debug, Clone, StructOpt)]
 enum Command {
 	/// Query external or contract account information
-	Query{
+	Query {
 		/// External address or contract address
 		#[structopt(long = "address")]
 		address: String,
@@ -32,7 +32,7 @@ enum Command {
 	},
 
 	/// Create external account
-	Create{
+	Create {
 		/// External address will be created
 		#[structopt(long = "address")]
 		address: String,
@@ -45,7 +45,7 @@ enum Command {
 	},
 
 	/// Modify external account
-	Modify{
+	Modify {
 		/// External address will be modified
 		#[structopt(long = "address")]
 		address: String,
@@ -58,7 +58,7 @@ enum Command {
 	},
 
 	/// Transfer value between two external accounts
-	Transfer{
+	Transfer {
 		/// The address from which transfer from
 		#[structopt(long = "from")]
 		from: String,
@@ -72,7 +72,7 @@ enum Command {
 }
 
 #[derive(Debug)]
-pub enum Account{
+pub enum Account {
 	EXTERNAL(H160, U256, U256),
 	CONTRACT(H160, U256, U256, H256, H256),
 }
