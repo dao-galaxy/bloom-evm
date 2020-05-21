@@ -143,21 +143,26 @@ mod tests {
     use crate::{RocksDb, TrieDb};
     use cita_trie::codec::RLPNodeCodec;
 
-//    #[test]
-//    fn test_rocksdb_trie_basics() {
-//        let test_dir = "data";
-//        let mut rocks_db = RocksDb::new(test_dir);
-//        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-//        trie_db.insert(b"1",b"2");
-//    }
-
     #[test]
-    fn test_rocksdb_trie_basics_read() {
+    fn test_rocksdb_trie_basics() {
         let test_dir = "data";
         let mut rocks_db = RocksDb::new(test_dir);
         let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        let ret = trie_db.get(b"1").unwrap().unwrap();
-        assert_eq!(b"2",ret.as_slice());
+        trie_db.insert(b"1",b"2");
+        let root = trie_db.root().unwrap();
+
+        let test_dir = "data";
+        let mut rocks_db = RocksDb::new(test_dir);
+        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+        let ret = trie_db.get(b"1");
+        println!("{:?}",ret);
+
+        let test_dir = "data";
+        let mut rocks_db = RocksDb::new(test_dir);
+        let mut trie_db = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root);
+        let ret = trie_db.get(b"1");
+        println!("{:?}",ret);
+
 
     }
 }
