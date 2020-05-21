@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 
 use structopt::StructOpt;
 use account_cmd::AccountCmd;
-use deposit_cmd::DepositCmd;
 use contract_cmd::ContractCmd;
 
 use ethereum_types::{U256, H160};
@@ -18,12 +17,13 @@ use evm::Config;
 #[derive(Debug, Clone, StructOpt)]
 pub enum Subcommand {
 	Account(AccountCmd),
-	Deposit(DepositCmd),
 	Contract(ContractCmd),
 }
 
 impl Subcommand {
+
 	pub fn run(&self) {
+
 		let vicinity = Vicinity {
 			gas_price: U256::zero(),
 			origin: H160::zero(),
@@ -35,26 +35,24 @@ impl Subcommand {
 			block_difficulty: U256::zero(),
 			block_gas_limit: U256::zero(),
 		};
+
 		let state = BTreeMap::<H160, Account>::new();
 		let backend = Backend::new(&vicinity, state);
 		let config = Config::istanbul();
 		let gas_limit = 100000;
-		let mut executor = StackExecutor::new(
-			&backend,
-			gas_limit as usize,
-			&config,
-		);
+
+		StackExecutor::new(&backend, gas_limit as usize, &config);
+		//let mut executor = StackExecutor::new(&backend, gas_limit as usize, &config);
 
 		match self {
 			Subcommand::Account(cmd) => {
 				cmd.run(backend);
 			}
-			Subcommand::Deposit(cmd) => {
-				cmd.run(&mut executor);
-			}
 			Subcommand::Contract(cmd) => {
 				cmd.run(backend);
 			}
 		}
+
 	}
+
 }
