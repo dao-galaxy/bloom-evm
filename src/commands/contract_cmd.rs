@@ -10,23 +10,25 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
-// ./target/debug/evmbin contract --from 0000000000000000000000000000000000000001 --to 0000000000000000000000000000000000000002 --value 0 --gas_limit 100000 --gas_price 0 --input 6000
+// ./target/debug/bloom-evm contract --from 0000000000000000000000000000000000000001 --to 0000000000000000000000000000000000000002 --value 0 --gas_limit 100000 --gas-price 0 --input 6000
+// ./target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code-file ./code-file
+// ./target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code 000000
+
 #[derive(Debug, StructOpt, Clone)]
 pub struct ContractCmd {
-
     #[structopt(subcommand)]
     cmd: Command
 }
 
-#[derive(StructOpt,Debug,Clone)]
+#[derive(StructOpt, Debug, Clone)]
 enum Command {
     /// Deploy contract
-    Deploy{
+    Deploy {
         /// The address which deploy contact
         #[structopt(long = "from")]
         from: String,
 
-        /// The value for deploying contract(Wei)
+        /// The value to deposit in contract
         #[structopt(long = "value")]
         value: String,
 
@@ -49,16 +51,16 @@ enum Command {
     },
 
     /// Message call
-    Call{
+    Call {
         /// The address which send messageCall
         #[structopt(long = "from")]
         from: String,
 
-        /// The value for messageCall(Wei)
+        /// The value (Wei) for messageCall
         #[structopt(long = "value")]
         value: String,
 
-        /// The receiver address for messageCall(Wei)
+        /// The receiver address for messageCall
         #[structopt(long = "to")]
         to: String,
 
@@ -66,7 +68,7 @@ enum Command {
         #[structopt(long = "gas")]
         gas: u32,
 
-        /// The gas price for messageCall(Wei)
+        /// The gas price (Wei) for messageCall
         #[structopt(long = "gas-price")]
         gas_price: String,
 
@@ -126,7 +128,7 @@ impl ContractCmd {
                 );
                 let nonce = Some(executor.nonce(from.clone()));
 
-                let create_address = executer::execute_evm(
+                let contract_address = executer::execute_evm(
                     from.clone(),
                     value,
                     gas_limit,
@@ -144,7 +146,7 @@ impl ContractCmd {
                     },
                 ).expect("Create contract failed");
 
-                let account = account_cmd::Account::new(&backend,create_address.clone());
+                let account = account_cmd::Account::new(&backend, contract_address.clone());
                 println!("Create contract successful, {}", account);
             }
 

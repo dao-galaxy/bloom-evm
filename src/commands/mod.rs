@@ -1,6 +1,6 @@
 mod account_cmd;
 mod call_message_cmd;
-mod create_contract_cmd;
+mod example;
 mod deposit_cmd;
 mod contract_cmd;
 
@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use structopt::StructOpt;
 use account_cmd::AccountCmd;
 use call_message_cmd::CallMessageCmd;
-use create_contract_cmd::CreateContractCmd;
+use example::CreateContractCmd;
 use deposit_cmd::DepositCmd;
 use contract_cmd::ContractCmd;
 

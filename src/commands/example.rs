@@ -12,9 +12,9 @@ pub struct CreateContractCmd {
 	pub from: String,
 	#[structopt(long = "value")]
 	pub value: String,
-	#[structopt(long = "gas_limit")]
+	#[structopt(long = "gas")]
 	pub gas_limit: u32,
-	#[structopt(long = "gas_price")]
+	#[structopt(long = "gas-price")]
 	pub gas_price: U256,
 	#[structopt(long = "code")]
 	pub code: String,
