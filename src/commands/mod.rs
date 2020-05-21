@@ -1,5 +1,4 @@
 mod account_cmd;
-mod deposit_cmd;
 mod contract_cmd;
 
 use std::collections::BTreeMap;
