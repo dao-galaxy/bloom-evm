@@ -11,6 +11,7 @@ use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("..."
 
 // target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
+// target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8 --storage-trie
 
 #[derive(Debug, StructOpt, Clone)]
 pub struct AccountCmd {
@@ -38,7 +39,7 @@ enum Command {
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Value(Wei) for the given address,  default 1 ether (18 zeros)
+		/// Value (Wei) for the given address,  default 1 ether (18 zeros)
 		#[structopt(long = "value", default_value = "1000000000000000000")]
 		value: String,
 
@@ -53,7 +54,7 @@ enum Command {
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Value(Wei) for the given address
+		/// Value (Wei) for the given address
 		#[structopt(long = "value")]
 		value: String,
 
@@ -62,7 +63,7 @@ enum Command {
 		nonce: String,
 	},
 
-	/// Transfer value from one external account to another
+	/// Transfer value between two external accounts
 	Transfer{
 		/// The address from which transfer from
 		#[structopt(long = "from")]
