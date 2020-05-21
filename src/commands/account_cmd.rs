@@ -13,21 +13,19 @@ use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("..."
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8 --storage-trie
 
-#[derive(Debug, StructOpt, Clone)]
+#[derive(Debug, Clone, StructOpt)]
 pub struct AccountCmd {
 	#[structopt(subcommand)]
 	cmd: Command
 }
 
-#[derive(StructOpt,Debug,Clone)]
+#[derive(Debug, Clone, StructOpt)]
 enum Command {
 	/// Query external or contract account information
 	Query{
-
 		/// External address or contract address
 		#[structopt(long = "address")]
 		address: String,
-
 		/// Flag whether show the storage trie
 		#[structopt(long = "storage-trie")]
 		storage_trie:bool
@@ -38,11 +36,9 @@ enum Command {
 		/// External address will be created
 		#[structopt(long = "address")]
 		address: String,
-
 		/// Value (Wei) for the given address,  default 1 ether (18 zeros)
 		#[structopt(long = "value", default_value = "1000000000000000000")]
 		value: String,
-
 		/// Nonce for the given address, default 0
 		#[structopt(long = "nonce", default_value = "0")]
 		nonce: String,
@@ -53,11 +49,9 @@ enum Command {
 		/// External address will be modified
 		#[structopt(long = "address")]
 		address: String,
-
 		/// Value (Wei) for the given address
 		#[structopt(long = "value")]
 		value: String,
-
 		/// Nonce for the given address
 		#[structopt(long = "nonce")]
 		nonce: String,
@@ -68,11 +62,9 @@ enum Command {
 		/// The address from which transfer from
 		#[structopt(long = "from")]
 		from: String,
-
 		/// The address from which transfer to
 		#[structopt(long = "to")]
 		to: String,
-
 		/// Value for transfer
 		#[structopt(long = "value")]
 		value: String,
@@ -86,12 +78,12 @@ pub enum Account{
 }
 
 impl Account {
-	pub fn new(backend: &MemoryBackend,address: H160) -> Self {
+	pub fn new(backend: &MemoryBackend, address: H160) -> Self {
 		let account = backend.basic(address.clone());
 		let code_size = backend.code_size(address.clone());
 		if code_size == 0 {
 			Account::EXTERNAL(address.clone(), account.balance, account.nonce)
-		}else {
+		} else {
 			let code_hash = backend.code_hash(address.clone());
 			Account::CONTRACT(address.clone(), account.balance, account.nonce, code_hash.clone(), code_hash.clone())
 		}
@@ -103,11 +95,11 @@ impl fmt::Display for Account {
 
 		match self {
 			Account::EXTERNAL(address, value, nonce) => {
-				write!(f,"External Account Info: {{address: {:?}, balance: {:?}, nonce: {:?} }}",address,value,nonce)
+				write!(f, "External Account Info: {{address: {:?}, balance: {:?}, nonce: {:?} }}", address, value, nonce)
 			},
 
 			Account::CONTRACT(address, value, nonce, code_hash, storage_trie) => {
-				write!(f,"Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
+				write!(f, "Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
 					   address, value, nonce, code_hash, storage_trie)
 			},
 		}
