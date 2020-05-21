@@ -153,14 +153,14 @@ mod tests {
 
         let test_dir = "data";
         let mut rocks_db = RocksDb::new(test_dir);
-        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        let ret = trie_db.get(b"1");
+        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+        let ret = td.get(b"1");
         println!("{:?}",ret);
 
         let test_dir = "data";
         let mut rocks_db = RocksDb::new(test_dir);
-        let mut trie_db = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root);
-        let ret = trie_db.get(b"1");
+        let mut td = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root).unwrap();
+        let ret = td.get(b"1");
         println!("{:?}",ret);
 
 
