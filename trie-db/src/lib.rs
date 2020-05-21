@@ -2,11 +2,14 @@
 use cita_trie::trie::{PatriciaTrie, Trie,TrieResult};
 use cita_trie::codec;
 use cita_trie;
-use rocksdb::{Writable, DB};
+use cita_trie::db::DB;
+use rocksdb;
+use rocksdb::Writable;
 use std::error;
 use std::fmt;
 use std::fmt::{Display,Formatter};
 use std::sync::Arc;
+use ethereum_types::{H160, H256, U256};
 
 
 #[derive(Debug)]
@@ -32,23 +35,39 @@ impl error::Error for RocksDbError {
     }
 }
 
+pub trait Root {
+    fn set_root(&mut self, root: &[u8]) -> Result<(),RocksDbError>;
+    fn get_root(&mut self) -> Result<Option<Vec<u8>>, RocksDbError>;
+}
+
 /// Handle to RocksDb
 #[derive(Clone)]
 pub struct RocksDb {
-    inner: Arc<DB>,
+    inner: Arc<rocksdb::DB>,
 }
 
 impl RocksDb {
     /// Create or open a database at the give path.  Will panic on error
     pub fn new(dir: &str) -> Self {
-        match DB::open_default(dir) {
+        match rocksdb::DB::open_default(dir) {
             Ok(db) => RocksDb {
                 inner: Arc::new(db),
             },
             Err(reason) => panic!(reason),
         }
     }
+}
 
+impl Root for RocksDb {
+    /// set root
+    fn set_root(&mut self, root: &[u8]) -> Result<(),RocksDbError> {
+        self.insert(b"root",root)
+    }
+
+    /// get root
+    fn get_root(&mut self) -> Result<Option<Vec<u8>>, RocksDbError> {
+        self.get(b"root")
+    }
 }
 
 // Implemented to satisfy the DB Trait
@@ -94,7 +113,7 @@ impl cita_trie::db::DB for RocksDb {
 pub struct TrieDb<'db,C,D>
     where
         C: codec::NodeCodec,
-        D: cita_trie::db::DB,
+        D: cita_trie::db::DB + Root,
 {
     trie: PatriciaTrie<'db,C,D>
 }
@@ -102,11 +121,28 @@ pub struct TrieDb<'db,C,D>
 impl<'db,C,D> TrieDb<'db,C,D>
     where
         C: codec::NodeCodec,
-        D: cita_trie::db::DB,
+        D: cita_trie::db::DB + Root,
 {
     pub fn new(db: &'db mut D,  codec: C) -> Self {
-        TrieDb{
-            trie: PatriciaTrie::new(db, codec)
+        match db.get_root() {
+            Ok(t) => {
+                match t {
+                    Some(root) => {
+                        let r = codec.decode_hash(root.as_slice(),true);
+                        Self::from(db,codec,&r).unwrap()
+                    },
+                    None => {
+                        TrieDb{
+                            trie: PatriciaTrie::new(db, codec)
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                TrieDb{
+                    trie: PatriciaTrie::new(db, codec)
+                }
+            }
         }
     }
 
@@ -140,7 +176,7 @@ impl<'db,C,D> TrieDb<'db,C,D>
 
 #[cfg(test)]
 mod tests {
-    use crate::{RocksDb, TrieDb};
+    use crate::{RocksDb, TrieDb, Root};
     use cita_trie::codec::RLPNodeCodec;
 
     #[test]
@@ -152,17 +188,27 @@ mod tests {
         let root = trie_db.root().unwrap();
 
         let test_dir = "data";
-        let mut rocks_db = RocksDb::new(test_dir);
         let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
         let ret = td.get(b"1");
-        println!("{:?}",ret);
+        assert_eq!(ret.unwrap_or(Some(Vec::new())),None);
 
         let test_dir = "data";
-        let mut rocks_db = RocksDb::new(test_dir);
         let mut td = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root).unwrap();
         let ret = td.get(b"1");
-        println!("{:?}",ret);
+        assert_eq!(ret.unwrap().unwrap().as_slice(),b"2");
+    }
 
+    #[test]
+    fn test_rocksdb_trie_root() {
+        let test_dir = "data";
+        let mut rocks_db = RocksDb::new(test_dir);
+        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+        trie_db.insert(b"0001",b"0002");
+        let root = trie_db.root().unwrap();
+        rocks_db.set_root(&root);
 
+        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+        let ret = td.get(b"0001");
+        assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
     }
 }

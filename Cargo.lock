@@ -124,6 +124,7 @@ name = "bloom-trie-db"
 version = "0.1.0"
 dependencies = [
  "cita_trie",
+ "ethereum-types 0.9.1",
  "parity-rocksdb",
 ]
 
