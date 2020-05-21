@@ -115,7 +115,7 @@ impl fmt::Display for Account {
 
 
 impl AccountCmd {
-	pub fn run(&self,mut backend: MemoryBackend) {
+	pub fn run(&self, mut backend: MemoryBackend) {
 		match &self.cmd {
 			Command::Query {address, storage_trie} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");
@@ -150,7 +150,7 @@ impl AccountCmd {
 				println!("{}", account);
 			},
 
-			Command::Modify {address,value,nonce} => {
+			Command::Modify {address, value, nonce} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
 				let nonce = U256::from_dec_str(nonce.as_str()).expect("--nonce argument must be a valid number");
@@ -191,11 +191,7 @@ impl AccountCmd {
 					&config,
 				);
 
-				match executor.transfer(Transfer{
-					source:from,
-					target:to,
-					value,
-				}) {
+				match executor.transfer(Transfer{ source:from, target:to, value, }) {
 					Ok(_) => {
 						let account = Account::new(&backend, from);
 						println!("{}", account);
