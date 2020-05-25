@@ -118,6 +118,11 @@ dependencies = [
 [[package]]
 name = "bloom-state"
 version = "0.1.0"
+dependencies = [
+ "bloom-trie-db",
+ "cita_trie",
+ "ethereum-types 0.9.1",
+]
 
 [[package]]
 name = "bloom-trie-db"

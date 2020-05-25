@@ -178,37 +178,87 @@ impl<'db,C,D> TrieDb<'db,C,D>
 mod tests {
     use crate::{RocksDb, TrieDb, Root};
     use cita_trie::codec::RLPNodeCodec;
+    use std::fs;
+
+//    #[test]
+//    fn test_rocksdb_trie_basics() {
+//        let test_dir = "data";
+//
+//        {
+//            let mut rocks_db = RocksDb::new(test_dir);
+//            let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+//            trie_db.insert(b"0001",b"0002");
+//            let root = trie_db.root().unwrap();
+//            rocks_db.set_root(&root);
+//        }
+//
+//        let mut rocks_db = RocksDb::new(test_dir);
+//        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+//        let ret = trie_db.get(b"0001");
+//        assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
+//        trie_db.insert(b"1",b"2");
+//        let root = trie_db.root().unwrap();
+//
+//        let test_dir = "data";
+//        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+//        let ret = td.get(b"1");
+//        assert_eq!(ret.unwrap_or(Some(Vec::new())),None);
+//
+//        let test_dir = "data";
+//        let mut td = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root).unwrap();
+//        let ret = td.get(b"1");
+//        assert_eq!(ret.unwrap().unwrap().as_slice(),b"2");
+//
+//        let _ = fs::remove_dir_all(test_dir);
+//
+//    }
+//
+//    #[test]
+//    fn test_rocksdb_trie_root() {
+//        let test_dir = "data";
+//        let mut rocks_db = RocksDb::new(test_dir);
+//        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+//        trie_db.insert(b"0001",b"0002");
+//        let root = trie_db.root().unwrap();
+//        rocks_db.set_root(&root);
+////        let ret = trie_db.get(b"0001");
+////        assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
+//
+////
+////        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+////        let ret = td.get(b"0001");
+////        assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
+//        let _ = fs::remove_dir_all(test_dir);
+//
+//    }
 
     #[test]
-    fn test_rocksdb_trie_basics() {
+    fn test_rocksdb_trie() {
         let test_dir = "data";
-        let mut rocks_db = RocksDb::new(test_dir);
-        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        trie_db.insert(b"1",b"2");
-        let root = trie_db.root().unwrap();
+        let root1 = {
+            let mut rocks_db = RocksDb::new(test_dir);
+            let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
+            trie_db.insert(b"0001",b"0002");
+            trie_db.root().unwrap()
+        };
 
-        let test_dir = "data";
-        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        let ret = td.get(b"1");
-        assert_eq!(ret.unwrap_or(Some(Vec::new())),None);
+        let root2 = {
+            let mut rocks_db = RocksDb::new(test_dir);
+            let mut trie_db = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root1).unwrap();
+            let ret = trie_db.get(b"0001");
+            assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
+            trie_db.insert(b"0001",b"0004");
+            trie_db.root().unwrap()
+        };
 
-        let test_dir = "data";
-        let mut td = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root).unwrap();
-        let ret = td.get(b"1");
-        assert_eq!(ret.unwrap().unwrap().as_slice(),b"2");
-    }
+        let root3 = {
+            let mut rocks_db = RocksDb::new(test_dir);
+            let mut trie_db = TrieDb::from(&mut rocks_db,RLPNodeCodec::default(),&root1).unwrap();
+            let ret = trie_db.get(b"0001");
+            assert_eq!(ret.unwrap().unwrap().as_slice(),b"0004");
+            trie_db.root().unwrap()
 
-    #[test]
-    fn test_rocksdb_trie_root() {
-        let test_dir = "data";
-        let mut rocks_db = RocksDb::new(test_dir);
-        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        trie_db.insert(b"0001",b"0002");
-        let root = trie_db.root().unwrap();
-        rocks_db.set_root(&root);
+        };
 
-        let mut td = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        let ret = td.get(b"0001");
-        assert_eq!(ret.unwrap().unwrap().as_slice(),b"0002");
     }
 }
