@@ -103,7 +103,7 @@ pub fn execute_evm<F, R>(
 		assert!(source_account.nonce == nonce, Error::InvalidNonce);
 	}
 
-	let (retv, reason) = f(&mut executor.clone());
+	let (retv, reason) = f(&mut executor);
 
 	let ret = match reason {
 		ExitReason::Succeed(_) => Ok(retv),
@@ -116,7 +116,7 @@ pub fn execute_evm<F, R>(
 	executor.deposit(source, total_fee.saturating_sub(actual_fee));
 
 	let (values, logs) = executor.deconstruct();
-	println!("{}",);
+
 	backend.apply(values, logs, true);
 
 	//println!("{:?}", &backend);
