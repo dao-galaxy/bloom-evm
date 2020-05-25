@@ -159,6 +159,7 @@ impl ContractCmd {
                 }
 
                 let contract_address = executer::execute_evm(
+                    &mut backend,
                     from.clone(),
                     value,
                     gas_limit,
@@ -176,8 +177,8 @@ impl ContractCmd {
                     },
                 ).expect("Create contract failed");
 
-                //let account = account_cmd::Account::new(&backend, contract_address.clone());
-                //println!("Create contract successful, {}", account);
+                let account = account_cmd::Account::new(&backend, contract_address.clone());
+                println!("Create contract successful, {}", account);
                 println!("{:#?}", backend);
             }
 
@@ -222,6 +223,7 @@ impl ContractCmd {
                 let nonce = Some(executor.nonce(from.clone()));
 
                 executer::execute_evm(
+                    &mut backend,
                     from.clone(),
                     value,
                     gas_limit,

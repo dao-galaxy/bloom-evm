@@ -58,6 +58,7 @@ pub enum Error
 
 /// Execute an EVM operation.
 pub fn execute_evm<F, R>(
+	backend:&mut Backend,
 	source: H160,
 	value: U256,
 	gas_limit: u32,
@@ -80,11 +81,11 @@ pub fn execute_evm<F, R>(
 		block_difficulty: U256::zero(),
 		block_gas_limit: U256::zero(),
 	};
-	let state = BTreeMap::<H160, Account>::new();
-	let mut backend = Backend::new(&vicinity, state);
+//	let state = BTreeMap::<H160, Account>::new();
+//	let mut backend = Backend::new(&vicinity, state);
 	let config = Config::istanbul();
 	let mut executor = StackExecutor::new(
-		&backend,
+		backend,
 		gas_limit as usize,
 		&config,
 	);
@@ -93,6 +94,8 @@ pub fn execute_evm<F, R>(
 	let total_payment = value.checked_add(total_fee).ok_or(Error::PaymentOverflow)?;
 	let state_account = executor.account_mut(source.clone());
 	let source_account = state_account.basic.clone();
+	println!("balance:{}",source_account.balance);
+	println!("payment:{}",total_payment);
 	assert!(source_account.balance >= total_payment, Error::BalanceLow);
 	executor.withdraw(source.clone(), total_fee).map_err(|_| Error::WithdrawFailed)?;
 
@@ -113,6 +116,7 @@ pub fn execute_evm<F, R>(
 	executor.deposit(source, total_fee.saturating_sub(actual_fee));
 
 	let (values, logs) = executor.deconstruct();
+	println!("{}",);
 	backend.apply(values, logs, true);
 
 	//println!("{:?}", &backend);
