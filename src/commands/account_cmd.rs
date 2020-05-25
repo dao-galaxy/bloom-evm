@@ -118,6 +118,7 @@ impl AccountCmd {
 				} else {
 					println!("--storage_trie has not yet supported!");
 				}
+				println!("{:?}", backend);
 			},
 
 			Command::Create {address,value,nonce} => {
@@ -141,6 +142,7 @@ impl AccountCmd {
 				backend.apply(applies,Vec::new(),false);
 				let account = Account::new(&backend,from);
 				println!("{}", account);
+				println!("{:?}", backend);
 			},
 
 			Command::Modify {address, value, nonce} => {
@@ -168,6 +170,7 @@ impl AccountCmd {
 				backend.apply(applies,Vec::new(),false);
 				let account = Account::new(&backend,from);
 				println!("{}", account);
+				println!("{:?}", backend);
 			},
 
 			Command::Transfer {from, to, value} => {
@@ -196,6 +199,7 @@ impl AccountCmd {
 						println!("Transfer failed: {:?}", err);
 					}
 				}
+				println!("{:?}", backend);
 			}
 
 

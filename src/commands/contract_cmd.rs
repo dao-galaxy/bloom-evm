@@ -10,9 +10,9 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
-// ./target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code-file ./code-file
-// ./target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code 000000
-// ./target/debug/bloom-evm contract call --from 0000000000000000000000000000000000000001  --to 0000000000000000000000000000000000000002 --value 0 --gas 100000 --gas-price 0 --data 000000
+// target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code-file ./code-file
+// target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code 000000
+// target/debug/bloom-evm contract call --from 0000000000000000000000000000000000000001  --to 0000000000000000000000000000000000000002 --value 0 --gas 100000 --gas-price 0 --data 000000
 
 #[derive(Debug, StructOpt, Clone)]
 pub struct ContractCmd {
@@ -148,6 +148,7 @@ impl ContractCmd {
 
                 let account = account_cmd::Account::new(&backend, contract_address.clone());
                 println!("Create contract successful, {}", account);
+                println!("{:?}", backend);
             }
 
             Command::Call {from,value,to,gas,gas_price,data,data_file} => {
