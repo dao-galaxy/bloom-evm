@@ -1,7 +1,7 @@
 use crate::executer;
 use crate::commands::account_cmd;
-use ethereum_types::{H160,U256};
-use evm::backend::{MemoryBackend};
+use ethereum_types::{H160, U256, H256};
+use evm::backend::{MemoryBackend, Apply, Basic, ApplyBackend};
 use evm::executor::StackExecutor;
 use hex;
 use structopt::StructOpt;
@@ -9,6 +9,8 @@ use evm::Config;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
+use std::collections::BTreeMap;
+use crate::commands::account_cmd::Account;
 
 // target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code-file ./code-file
 // target/debug/bloom-evm contract deploy --from 0000000000000000000000000000000000000001  --value 0 --gas 100000 --gas-price 0 --code 000000
@@ -86,7 +88,7 @@ enum Command {
 
 
 impl ContractCmd {
-    pub fn run(&self, backend: MemoryBackend) {
+    pub fn run(&self, mut backend: MemoryBackend) {
         match &self.cmd {
             Command::Deploy {from,value,gas,gas_price,code,code_file} => {
 
@@ -119,6 +121,9 @@ impl ContractCmd {
                     }
                 }.expect("--code or --code-file must be provided one of them ");
 
+
+
+
                 let code = hex::decode(code.as_str()).expect("Code is invalid");
                 let config = Config::istanbul();
                 let executor = StackExecutor::new(
@@ -127,6 +132,31 @@ impl ContractCmd {
                     &config,
                 );
                 let nonce = Some(executor.nonce(from.clone()));
+
+
+                {
+                    let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+
+                    applies.push(Apply::Delete {
+                        address: from.clone(),
+                    });
+
+                    applies.push(Apply::Modify {
+                        address: from.clone(),
+                        basic: Basic{
+                            balance: U256::from_dec_str("90000000000000000").expect("error"),
+                            nonce : U256::zero(),
+                        },
+                        code: None,
+                        storage: BTreeMap::new(),
+                        reset_storage: false,
+                    });
+
+                    backend.apply(applies,Vec::new(),false);
+                    let account = Account::new(&backend,from);
+                    println!("{}", account);
+                    println!("{:#?}", backend);
+                }
 
                 let contract_address = executer::execute_evm(
                     from.clone(),
@@ -146,8 +176,8 @@ impl ContractCmd {
                     },
                 ).expect("Create contract failed");
 
-                let account = account_cmd::Account::new(&backend, contract_address.clone());
-                println!("Create contract successful, {}", account);
+                //let account = account_cmd::Account::new(&backend, contract_address.clone());
+                //println!("Create contract successful, {}", account);
                 println!("{:#?}", backend);
             }
 
