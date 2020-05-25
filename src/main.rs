@@ -13,7 +13,7 @@ pub struct Cli {
 
 fn main() {
 	let cli = Cli::from_args();
-	//println!("{:#?}", cli);
+	println!("{:#?}", cli);
 
 	if let Some(ref subcmd) = cli.subcmd {
 		subcmd.run();

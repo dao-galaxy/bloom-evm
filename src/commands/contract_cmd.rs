@@ -148,7 +148,7 @@ impl ContractCmd {
 
                 let account = account_cmd::Account::new(&backend, contract_address.clone());
                 println!("Create contract successful, {}", account);
-                println!("{:?}", backend);
+                println!("{:#?}", backend);
             }
 
             Command::Call {from,value,to,gas,gas_price,data,data_file} => {
@@ -207,6 +207,7 @@ impl ContractCmd {
                 ).expect("Call message failed");
 
                 println!("Contract Called, State OK.");
+                println!("{:#?}", backend);
             }
         }
     }
