@@ -1,7 +1,7 @@
 use crate::executer;
 use crate::commands::account_cmd;
 use ethereum_types::{H160, U256, H256};
-use evm::backend::{MemoryBackend, Apply, Basic, ApplyBackend};
+use evm::backend::{MemoryBackend, Apply, Basic, ApplyBackend, Backend};
 use evm::executor::StackExecutor;
 use hex;
 use structopt::StructOpt;
@@ -180,6 +180,10 @@ impl ContractCmd {
                 let account = account_cmd::Account::new(&backend, contract_address.clone());
                 println!("Create contract successful, {}", account);
                 println!("{:#?}", backend);
+
+                let code = backend.code(contract_address.clone());
+                let code_str = hex::encode(code);
+                println!("code={:?}",code_str);
             }
 
             Command::Call {from,value,to,gas,gas_price,data,data_file} => {
@@ -212,6 +216,53 @@ impl ContractCmd {
                         ret
                     }
                 }.unwrap_or(&contents);
+
+
+                {
+                    let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+
+                    applies.push(Apply::Delete {
+                        address: from.clone(),
+                    });
+
+                    applies.push(Apply::Modify {
+                        address: from.clone(),
+                        basic: Basic{
+                            balance: U256::from_dec_str("90000000000000000").expect("error"),
+                            nonce : U256::zero(),
+                        },
+                        code: None,
+                        storage: BTreeMap::new(),
+                        reset_storage: false,
+                    });
+
+                    let code_str = String::from("60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680636057361d14610051578063b05784b81461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610162565b6040518082815260200191505060405180910390f35b80600081905550600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166108fc60019081150290604051600060405180830381858888f19350505050158015610127573d6000803e3d6000fd5b507f69404ebde4a368ae324ed310becfefc3edfe9e5ebca74464e37ffffd8309a3c1816040518082815260200191505060405180910390a150565b6000805490509056fea165627a7a7230582027d96b9c1b889b14ef1473414b98ab575bd02a8f400c56ff03153ce3cd968b440029");
+                    let code = hex::decode(code_str.as_str()).expect("code is invalid");
+                    let mut storage:BTreeMap<H256, H256> = BTreeMap::new();
+                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").expect("");
+                    let val1 = H256::from_str("000000000000000000000000000000000000000000000000000000000000000b").expect("");
+                    storage.insert(key1,val1);
+
+                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
+                    let val1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
+                    storage.insert(key1,val1);
+
+                    applies.push(Apply::Modify {
+                        address: to.clone(),
+                        basic: Basic{
+                            balance: U256::from_dec_str("10000000000000000").expect("error"),
+                            nonce : U256::one(),
+                        },
+                        code: Some(code),
+                        storage: storage,
+                        reset_storage: false,
+                    });
+
+                    backend.apply(applies,Vec::new(),false);
+                    let account = Account::new(&backend,from);
+                    println!("{}", account);
+                    println!("{:#?}", backend);
+                }
 
                 let input = hex::decode(data.as_str()).expect("Input is invalid");
                 let config = Config::istanbul();
