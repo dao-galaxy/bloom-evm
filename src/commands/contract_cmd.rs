@@ -122,18 +122,6 @@ impl ContractCmd {
                 }.expect("--code or --code-file must be provided one of them ");
 
 
-
-
-                let code = hex::decode(code.as_str()).expect("Code is invalid");
-                let config = Config::istanbul();
-                let executor = StackExecutor::new(
-                    &backend,
-                    gas_limit as usize,
-                    &config,
-                );
-                let nonce = Some(executor.nonce(from.clone()));
-
-
                 {
                     let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
@@ -145,7 +133,7 @@ impl ContractCmd {
                         address: from.clone(),
                         basic: Basic{
                             balance: U256::from_dec_str("90000000000000000").expect("error"),
-                            nonce : U256::zero(),
+                            nonce : U256::from_dec_str("1").expect(""),
                         },
                         code: None,
                         storage: BTreeMap::new(),
@@ -157,6 +145,15 @@ impl ContractCmd {
                     println!("{}", account);
                     println!("{:#?}", backend);
                 }
+
+                let code = hex::decode(code.as_str()).expect("Code is invalid");
+                let config = Config::istanbul();
+                let executor = StackExecutor::new(
+                    &backend,
+                    gas_limit as usize,
+                    &config,
+                );
+                let nonce = Some(executor.nonce(from.clone()));
 
                 let contract_address = executer::execute_evm(
                     &mut backend,
@@ -236,21 +233,41 @@ impl ContractCmd {
                         reset_storage: false,
                     });
 
-                    let code_str = String::from("60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680636057361d14610051578063b05784b81461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610162565b6040518082815260200191505060405180910390f35b80600081905550600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166108fc60019081150290604051600060405180830381858888f19350505050158015610127573d6000803e3d6000fd5b507f69404ebde4a368ae324ed310becfefc3edfe9e5ebca74464e37ffffd8309a3c1816040518082815260200191505060405180910390a150565b6000805490509056fea165627a7a7230582027d96b9c1b889b14ef1473414b98ab575bd02a8f400c56ff03153ce3cd968b440029");
+                    // Contract A
+                    let code_str = String::from("60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680630c55699c14610051578063371303c01461007c575b600080fd5b34801561005d57600080fd5b50610066610093565b6040518082815260200191505060405180910390f35b34801561008857600080fd5b50610091610099565b005b60005481565b60008081548092919060010191905055507fc53841cfc6243b876de3e290f899cc26dcd2f4878081e02b98a3f0fe7d40476533604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390a15600a165627a7a7230582078aebbdee62d50bdde9b29d5c70f2e97f1d6912f34eb7123af51ab032d51c6190029");
                     let code = hex::decode(code_str.as_str()).expect("code is invalid");
                     let mut storage:BTreeMap<H256, H256> = BTreeMap::new();
-                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").expect("");
-                    let val1 = H256::from_str("000000000000000000000000000000000000000000000000000000000000000b").expect("");
-                    storage.insert(key1,val1);
+//                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").expect("");
+//                    let val1 = H256::from_str("000000000000000000000000000000000000000000000000000000000000000b").expect("");
+//                    storage.insert(key1,val1);
+//
+//                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
+//                    let val1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
+//                    storage.insert(key1,val1);
 
-                    let key1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
-                    let val1 = H256::from_str("0000000000000000000000000000000000000000000000000000000000000002").expect("");
-                    storage.insert(key1,val1);
-
+                    let to = H160::from_str("bd770416a3345f91e4b34576cb804a576fa48eb1").expect("");
                     applies.push(Apply::Modify {
                         address: to.clone(),
                         basic: Basic{
                             balance: U256::from_dec_str("10000000000000000").expect("error"),
+                            nonce : U256::one(),
+                        },
+                        code: Some(code),
+                        storage: storage,
+                        reset_storage: false,
+                    });
+
+
+                    // Contract B
+                    let code_str = String::from("608060405260043610610057576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680630c55699c1461005c578063a7126c2d14610087578063a9421619146100ca575b600080fd5b34801561006857600080fd5b5061007161010d565b6040518082815260200191505060405180910390f35b34801561009357600080fd5b506100c8600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610113565b005b3480156100d657600080fd5b5061010b600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506101c2565b005b60005481565b8073ffffffffffffffffffffffffffffffffffffffff1660405180807f696e632829000000000000000000000000000000000000000000000000000000815250600501905060405180910390207c010000000000000000000000000000000000000000000000000000000090046040518163ffffffff167c0100000000000000000000000000000000000000000000000000000000028152600401600060405180830381865af4925050505050565b8073ffffffffffffffffffffffffffffffffffffffff1660405180807f696e632829000000000000000000000000000000000000000000000000000000815250600501905060405180910390207c010000000000000000000000000000000000000000000000000000000090046040518163ffffffff167c01000000000000000000000000000000000000000000000000000000000281526004016000604051808303816000875af19250505050505600a165627a7a72305820d4e666caa8902efb06b9389361dff695b954a3713006ff68d5c8e3da104f489a0029");
+                    let code = hex::decode(code_str.as_str()).expect("code is invalid");
+                    let mut storage:BTreeMap<H256, H256> = BTreeMap::new();
+
+                    let to = H160::from_str("5a443704dd4b594b382c22a083e2bd3090a6fef3").expect("");
+                    applies.push(Apply::Modify {
+                        address: to.clone(),
+                        basic: Basic{
+                            balance: U256::from_dec_str("5000000000000000").expect("error"),
                             nonce : U256::one(),
                         },
                         code: Some(code),
