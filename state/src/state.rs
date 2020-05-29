@@ -1,4 +1,3 @@
-use bloom_trie_db::TrieDb;
 
 
 use ethereum_types::{Address, H256, U256};
