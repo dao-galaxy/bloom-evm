@@ -278,7 +278,7 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher",
- "kvdb",
+ "kvdb 0.6.0",
  "kvdb-memorydb",
  "log",
  "memory-db",
@@ -320,12 +320,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kvdb"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e763b2a9b500ba47948061d1e8bc3b5f03a8a1f067dbcf822a4d2c84d2b54a3a"
+dependencies = [
+ "parity-util-mem 0.6.1",
+ "smallvec 1.4.0",
+]
+
+[[package]]
 name = "kvdb-memorydb"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d25ef14155e418515c4839e9144c839de3506e68946f255a32b7f166095493d"
 dependencies = [
- "kvdb",
+ "kvdb 0.3.1",
  "parity-util-mem 0.4.2",
  "parking_lot",
 ]
@@ -437,6 +447,18 @@ dependencies = [
  "impl-trait-for-tuples",
  "parity-util-mem-derive",
  "parking_lot",
+ "winapi",
+]
+
+[[package]]
+name = "parity-util-mem"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c6e2583649a3ca84894d1d71da249abcfda54d5aca24733d72ca10d0f02361c"
+dependencies = [
+ "cfg-if",
+ "impl-trait-for-tuples",
+ "parity-util-mem-derive",
  "winapi",
 ]
 

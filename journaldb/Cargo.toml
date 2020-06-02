@@ -13,7 +13,7 @@ malloc_size_of = { version = "0.3.0", package = "parity-util-mem" }
 memory-db = "0.18.0"
 hash-db = "0.15.2"
 keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
-kvdb = "0.3.1"
+kvdb = "0.6.0"
 log = "0.4"
 parking_lot = "0.9"
 fastmap = { path = "../util/fastmap" }
