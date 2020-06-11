@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed `HashDB` implementation.
 
@@ -26,7 +26,7 @@ use ethereum_types::H256;
 use hash_db::{HashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
-use malloc_size_of::MallocSizeOfExt;
+use parity_util_mem::MallocSizeOfExt;
 use parity_bytes::Bytes;
 use rlp::{encode, decode};
 
@@ -42,6 +42,7 @@ use crate::{
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
+#[derive(Clone)]
 pub struct ArchiveDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -98,12 +99,11 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 
 impl JournalDB for ArchiveDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(ArchiveDB {
-			overlay: self.overlay.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
+	}
+
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
 	}
 
 	fn mem_used(&self) -> usize {
@@ -142,9 +142,8 @@ impl JournalDB for ArchiveDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
-		let mut inserts = 0usize;
-		let mut deletes = 0usize;
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
+		let mut batch = DBTransaction::new();
 
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
@@ -153,7 +152,6 @@ impl JournalDB for ArchiveDB {
 					return Err(error_key_already_exists(&key));
 				}
 				batch.put(self.column, key.as_bytes(), &value);
-				inserts += 1;
 			}
 			if rc < 0 {
 				assert!(rc == -1);
@@ -161,11 +159,10 @@ impl JournalDB for ArchiveDB {
 					return Err(error_negatively_reference_hash(&key));
 				}
 				batch.delete(self.column, key.as_bytes());
-				deletes += 1;
 			}
 		}
 
-		Ok((inserts + deletes) as u32)
+		Ok(batch)
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
@@ -209,7 +206,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{JournalDB, inject_batch, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -463,11 +460,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}

@@ -8,18 +8,18 @@ edition = "2018"
 
 [dependencies]
 parity-bytes = "0.1"
-ethereum-types = "0.8.0"
-malloc_size_of = { version = "0.3.0", package = "parity-util-mem" }
-memory-db = "0.18.0"
+ethereum-types = "0.9.0"
 hash-db = "0.15.2"
-keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
+parity-util-mem = "0.6.0"
+keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.6.0"
 log = "0.4"
-parking_lot = "0.9"
+memory-db = "0.21.0"
+parking_lot = "0.10.0"
 fastmap = { path = "../util/fastmap" }
-rlp = "0.4.0"
+rlp = "0.4.5"
 
 [dev-dependencies]
 env_logger = "0.5"
-keccak-hash = "0.4.0"
-kvdb-memorydb = "0.3.1"
+keccak-hash = "0.5.0"
+kvdb-memorydb = "0.5.0"

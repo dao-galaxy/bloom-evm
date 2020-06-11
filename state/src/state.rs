@@ -1,35 +1,137 @@
 
+use patricia_trie_ethereum as ethtrie;
+use journaldb::JournalDB;
+use ethereum_types::{Address, H256, U256, H160};
+use evm::backend::{Basic,Log,Backend,ApplyBackend};
 
-use ethereum_types::{Address, H256, U256};
+use crate::{BackendVicinity,Factories};
+use crate::account::Account;
+use trie_db::Trie;
 
-pub struct State<'db> {
-    trie_db: TrieDb,
+
+
+pub struct State<'vicinity> {
+    vicinity: &'vicinity BackendVicinity,
+    /// Backing database.
+    db: Box<dyn JournalDB>,
     root: H256,
+    factories: Factories,
 }
 
-impl<'db> State<'db> {
-    pub fn new(trie_db: TrieDb) -> Self{
+impl<'vicinity> State<'vicinity> {
+    pub fn new(vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> Self {
         State{
-            trie_db,
-            root: H256::zero(),
+            vicinity,
+            db,
+            root: H256::default(),
+            factories,
         }
     }
+
+}
+
+impl <'vicinity> Backend for State<'vicinity> {
+    fn gas_price(&self) -> U256 {self.vicinity.gas_price}
+    fn origin(&self) -> H160 {self.vicinity.origin}
+    fn block_hash(&self, number: U256) -> H256  {
+        if number >= self.vicinity.block_number ||
+            self.vicinity.block_number - number - U256::one() >= U256::from(self.vicinity.block_hashes.len()){
+            H256::default()
+        }else {
+            let index = (self.vicinity.block_number - number - U256::one()).as_usize();
+            self.vicinity.block_hashes[index]
+        }
+    }
+    fn block_number(&self) -> U256 {self.vicinity.block_number}
+    fn block_coinbase(&self) -> H160 {self.vicinity.block_coinbase}
+    fn block_timestamp(&self) -> U256 {self.vicinity.block_timestamp}
+    fn block_difficulty(&self) -> U256 {self.vicinity.block_difficulty}
+    fn block_gas_limit(&self) -> U256 {self.vicinity.block_gas_limit}
+
+    fn chain_id(&self) -> U256 {self.vicinity.chain_id}
+
+    fn exists(&self, address: H160) -> bool {
+        true
+    }
+
+    fn basic(&self,address: H160) -> Basic {
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+        Basic{
+            balance: acc.balance().clone() ,
+            nonce: acc.balance().clone(),
+        }
+    }
+
+    fn code_hash(&self, address: H160) -> H256 {
+        H256::zero()
+    }
+
+    fn code_size(&self, address: H160) -> usize {
+        0
+    }
+
+    fn code(&self,address: H160) -> Vec<u8> {
+        Vec::new()
+    }
+
+
+    fn storage(&self, address: H160, index: H256) -> H256 {
+        H256::default()
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use crate::State;
-    use bloom_trie_db::{TrieDb,RocksDb};
-    use cita_trie::codec::RLPNodeCodec;
+    use crate::BackendVicinity;
+    use kvdb_rocksdb::{Database, DatabaseConfig};
+    use crate::{COLUMN_COUNT,COL_STATE};
+    use patricia_trie_ethereum as ethtrie;
+    use trie_db::TrieSpec;
+    use std::sync::Arc;
+    use ethereum_types::{Address, H256, U256, H160};
+    use crate::account_db::Factory;
+    use crate::Factories;
+
+
 
 
 
     #[test]
     fn test_state() {
-        let test_dir = "data";
-        let mut rocks_db = RocksDb::new(test_dir);
-        let mut trie_db = TrieDb::new(&mut rocks_db,RLPNodeCodec::default());
-        let state = State::new(trie_db);
+        let dataPath = "test-db";
+        let mut config = DatabaseConfig::with_columns(COLUMN_COUNT);
+        let database = Arc::new(Database::open(&config, dataPath).unwrap());
+        let mut db = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
+        let trie_layout = ethtrie::Layout::default();
+        let trie_spec = TrieSpec::default();
+
+        let vicinity = BackendVicinity {
+            gas_price: U256::zero(),
+            origin: H160::zero(),
+            chain_id: U256::zero(),
+            block_hashes: Vec::new(),
+            block_number: U256::zero(),
+            block_coinbase: H160::zero(),
+            block_timestamp: U256::zero(),
+            block_difficulty: U256::zero(),
+            block_gas_limit: U256::zero(),
+        };
+
+        let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
+        let account_factory = Factory::default();
+        let factories = Factories{
+            trie: trie_factory,
+            accountdb: account_factory,
+        };
+
+        let state = State::new(&vicinity,db,factories);
     }
 
 }

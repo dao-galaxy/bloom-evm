@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
@@ -27,7 +27,7 @@ use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use log::trace;
-use malloc_size_of::{MallocSizeOf, allocators::new_malloc_size_ops};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parity_bytes::Bytes;
 use rlp::{encode, decode};
 
@@ -57,6 +57,7 @@ use crate::{
 /// we remove all of its removes assuming it is canonical and all
 /// of its inserts otherwise.
 // TODO: store last_era, reclaim_period.
+#[derive(Clone)]
 pub struct RefCountedDB {
 	forward: OverlayDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -88,20 +89,17 @@ impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> { self.forward.get(key, prefix) }
 	fn contains(&self, key: &H256, prefix: Prefix) -> bool { self.forward.contains(key, prefix) }
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 { let r = self.forward.insert(prefix, value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, prefix, value); }
-	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(key.clone()); }
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key); self.forward.emplace(key, prefix, value); }
+	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(*key); }
 }
 
 impl JournalDB for RefCountedDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(RefCountedDB {
-			forward: self.forward.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			inserts: self.inserts.clone(),
-			removes: self.removes.clone(),
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
+	}
+
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
 	}
 
 	fn mem_used(&self) -> usize {
@@ -195,12 +193,13 @@ impl JournalDB for RefCountedDB {
 		Ok(r)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove, EMPTY_PREFIX);
 		}
-		self.forward.commit_to_batch(batch)
+		let mut batch = DBTransaction::new();
+		self.forward.commit_to_batch(&mut batch).map(|_| batch)
 	}
 
 	fn consolidate(&mut self, mut with: super::MemoryDB) {
@@ -226,7 +225,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{JournalDB, inject_batch, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch};
 
 	fn new_db() -> RefCountedDB {
 		let backing = Arc::new(kvdb_memorydb::create(1));
@@ -340,11 +339,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = new_db();
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}

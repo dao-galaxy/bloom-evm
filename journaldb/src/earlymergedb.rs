@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed `HashDB` implementation.
 
@@ -27,7 +27,7 @@ use hash_db::{HashDB, Prefix};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use log::{trace, warn};
-use malloc_size_of::{MallocSizeOf, allocators::new_malloc_size_ops};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parity_bytes::Bytes;
 use parking_lot::RwLock;
 use rlp::{encode, decode};
@@ -106,6 +106,7 @@ enum RemoveFrom {
 /// ```
 ///
 /// TODO: `store_reclaim_period`
+#[derive(Clone)]
 pub struct EarlyMergeDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -167,7 +168,7 @@ impl EarlyMergeDB {
 					}
 					entry.insert(RefInfo {
 						queue_refs: 1,
-						in_archive: in_archive,
+						in_archive,
 					});
 				},
 			}
@@ -318,13 +319,11 @@ impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
 
 impl JournalDB for EarlyMergeDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(EarlyMergeDB {
-			overlay: self.overlay.clone(),
-			backing: self.backing.clone(),
-			refs: self.refs.clone(),
-			latest_era: self.latest_era.clone(),
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
+	}
+
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
 	}
 
 	fn is_empty(&self) -> bool {
@@ -376,7 +375,7 @@ impl JournalDB for EarlyMergeDB {
 
 			let removes: Vec<H256> = drained
 				.iter()
-				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
+				.filter_map(|(k, &(_, c))| if c < 0 { Some(*k) } else { None })
 				.collect();
 			let inserts: Vec<(H256, _)> = drained
 				.into_iter()
@@ -475,11 +474,9 @@ impl JournalDB for EarlyMergeDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
-		let mut ops = 0;
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
+		let mut batch = DBTransaction::new();
 		for (key, (value, rc)) in self.overlay.drain() {
-			if rc != 0 { ops += 1 }
-
 			match rc {
 				0 => {}
 				1 => {
@@ -498,7 +495,7 @@ impl JournalDB for EarlyMergeDB {
 			}
 		}
 
-		Ok(ops)
+		Ok(batch)
 	}
 
 	fn consolidate(&mut self, with: super::MemoryDB) {
@@ -530,7 +527,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{inject_batch, commit_batch};
+	use crate::{drain_overlay, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -1051,11 +1048,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = new_db();
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! `JournalDB` interface and implementation.
 
@@ -45,6 +45,9 @@ pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
 
+	/// Returns the I/O statistics.
+	fn io_stats(&self) -> kvdb::IoStats;
+
 	/// Returns the size of journalled state in memory.
 	/// This function has a considerable speed requirement --
 	/// it must be fast enough to call several times per block imported.
@@ -69,11 +72,8 @@ pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
 	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
 	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
 	///
-	/// Any keys or values inserted or deleted must be completely independent of those affected
-	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
-	/// either to restore a state to a fresh database, or to insert data which may only be journalled
-	/// from this point onwards.
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32>;
+	/// Returns a transaction to be committed.
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction>;
 
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
@@ -210,12 +210,11 @@ pub fn new_memory_db() -> MemoryDB {
 	MemoryDB::from_null_node(&rlp::NULL_RLP, rlp::NULL_RLP.as_ref().into())
 }
 
-#[cfg(test)]
 /// Inject all changes in a single batch.
-pub fn inject_batch(jdb: &mut dyn JournalDB) -> io::Result<u32> {
-	let mut batch = jdb.backing().transaction();
-	let res = jdb.inject(&mut batch)?;
-	jdb.backing().write(batch).map(|_| res).map_err(Into::into)
+#[cfg(test)]
+pub fn drain_overlay(jdb: &mut dyn JournalDB) -> io::Result<()> {
+	let batch = jdb.drain_transaction_overlay()?;
+	jdb.backing().write(batch).map_err(Into::into)
 }
 
 /// Commit all changes in a single batch
