@@ -1,5 +1,5 @@
 
-use patricia_trie_ethereum as ethtrie;
+use ethtrie;
 use journaldb::JournalDB;
 use ethereum_types::{Address, H256, U256, H160};
 use evm::backend::{Basic,Log,Backend,ApplyBackend};
@@ -51,7 +51,12 @@ impl <'vicinity> Backend for State<'vicinity> {
     fn chain_id(&self) -> U256 {self.vicinity.chain_id}
 
     fn exists(&self, address: H160) -> bool {
-        true
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        maybe_acc.is_some()
     }
 
     fn basic(&self,address: H160) -> Basic {
@@ -68,15 +73,45 @@ impl <'vicinity> Backend for State<'vicinity> {
     }
 
     fn code_hash(&self, address: H160) -> H256 {
-        H256::zero()
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+        acc.code_hash()
     }
 
     fn code_size(&self, address: H160) -> usize {
-        0
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+        let code_size = match acc.code_size() {
+            Some(s) => s,
+            None => 0usize,
+        };
+        code_size
     }
 
     fn code(&self,address: H160) -> Vec<u8> {
-        Vec::new()
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        if let Some(ref mut acc) = maybe_acc.as_mut() {
+            let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
+            let code = match acc.cache_code(accountdb.as_hash_db()) {
+                Some(c) => c.to_vec(),
+                None => vec![],
+            };
+            return code;
+        }
+        vec![]
+
     }
 
 
@@ -92,7 +127,7 @@ mod tests {
     use crate::BackendVicinity;
     use kvdb_rocksdb::{Database, DatabaseConfig};
     use crate::{COLUMN_COUNT,COL_STATE};
-    use patricia_trie_ethereum as ethtrie;
+    use ethtrie;
     use trie_db::TrieSpec;
     use std::sync::Arc;
     use ethereum_types::{Address, H256, U256, H160};

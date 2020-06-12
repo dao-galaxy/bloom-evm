@@ -7,7 +7,7 @@ mod account;
 
 use state::State;
 use account_db::Factory as AccountFactory;
-use patricia_trie_ethereum as ethtrie;
+use ethtrie;
 
 
 

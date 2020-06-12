@@ -7,7 +7,7 @@ extern crate rlp;
 use memory_db::{MemoryDB, PrefixedKey};
 use keccak_hasher::KeccakHasher;
 use trie_db::DBValue;
-use patricia_trie_ethereum as ethtrie;
+use ethtrie;
 use ethtrie::trie::TrieMut;
 use hex_literal::hex;
 use trie_db::Trie;
