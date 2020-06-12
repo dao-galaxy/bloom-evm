@@ -30,6 +30,7 @@ pub struct Account {
     balance: U256,
     nonce: U256,
     storage_root: H256,
+    storage_changes: HashMap<H256, H256>,
     code_hash: H256,
     code_size: Option<usize>,
     code_cache: Arc<Bytes>,
@@ -44,6 +45,7 @@ impl From<BasicAccount> for Account {
             balance: basic.balance,
             nonce: basic.nonce,
             storage_root: basic.storage_root,
+            storage_changes: HashMap::new(),
             code_hash: basic.code_hash,
             code_size: None,
             code_cache: Arc::new(vec![]),
@@ -60,6 +62,7 @@ impl Account {
             balance,
             nonce,
             storage_root: KECCAK_NULL_RLP,
+            storage_changes: HashMap::new(),
             code_hash: KECCAK_EMPTY,
             code_size: Some(0),
             code_cache: Arc::new(vec![]),
@@ -155,6 +158,18 @@ impl Account {
         self.balance = self.balance - *x;
     }
 
+    pub fn set_balance(&mut self, balance: U256) {
+        self.balance = balance;
+    }
+
+    pub fn set_nonce(&mut self, nonce: U256) {
+        self.nonce = nonce;
+    }
+
+    pub fn set_storage(&mut self, key: H256, value: H256) {
+        self.storage_changes.insert(key, value);
+    }
+
     pub fn storage_at(&self, db: &dyn HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
         let db = SecTrieDB::new(&db, &self.storage_root)?;
         let decoder = |bytes: &[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
@@ -164,10 +179,9 @@ impl Account {
     }
 
     pub fn commit_storage(&mut self, trie_factory: &TrieFactory,
-                          db: &mut dyn HashDB<KeccakHasher, DBValue>,
-                          storage: &HashMap<H256,H256>) -> TrieResult<()> {
+                          db: &mut dyn HashDB<KeccakHasher, DBValue>) -> TrieResult<()> {
         let mut t = trie_factory.from_existing(db, &mut self.storage_root).unwrap();
-        for(k, v) in storage {
+        for(k, v) in self.storage_changes.drain() {
             match v.is_zero() {
                 true => t.remove(k.as_bytes())?,
                 false => t.insert(k.as_bytes(), &encode(&v.into_uint()))?,
@@ -177,7 +191,20 @@ impl Account {
         Ok(())
     }
 
-
+    pub fn commit_code(&mut self, db: &mut dyn HashDB<KeccakHasher, DBValue>) {
+        match (self.code_filth == Filth::Dirty, self.code_cache.is_empty()) {
+            (true, true) => {
+                self.code_size = Some(0);
+                self.code_filth = Filth::Clean;
+            },
+            (true, false) => {
+                db.emplace(self.code_hash.clone(), hash_db::EMPTY_PREFIX, self.code_cache.to_vec());
+                self.code_size = Some(self.code_cache.len());
+                self.code_filth = Filth::Clean;
+            },
+            (false, _) => {},
+        }
+    }
 
 }
 

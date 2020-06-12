@@ -2,11 +2,13 @@
 use ethtrie;
 use journaldb::JournalDB;
 use ethereum_types::{Address, H256, U256, H160};
-use evm::backend::{Basic,Log,Backend,ApplyBackend};
+use evm::backend::{Basic,Log,Backend,ApplyBackend,Apply};
 
 use crate::{BackendVicinity,Factories};
 use crate::account::Account;
 use trie_db::Trie;
+
+use std::collections::{HashSet, HashMap};
 
 
 
@@ -16,6 +18,7 @@ pub struct State<'vicinity> {
     db: Box<dyn JournalDB>,
     root: H256,
     factories: Factories,
+    logs: Vec<Log>,
 }
 
 impl<'vicinity> State<'vicinity> {
@@ -25,7 +28,17 @@ impl<'vicinity> State<'vicinity> {
             db,
             root: H256::default(),
             factories,
+            logs: vec![],
         }
+    }
+
+    pub fn get_account(&self,address: H160) -> Account {
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        maybe_acc.unwrap_or_else(| | Account::new_basic(U256::zero(), U256::zero()))
     }
 
 }
@@ -116,9 +129,90 @@ impl <'vicinity> Backend for State<'vicinity> {
 
 
     fn storage(&self, address: H160, index: H256) -> H256 {
-        H256::default()
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+        if let Some(acc) = maybe_acc {
+            let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
+            let code = match acc.storage_at(accountdb.as_hash_db(), &index) {
+                Ok(v) => v,
+                Err(e) => H256::zero(),
+            };
+            return code;
+        }
+        H256::zero()
     }
 
+}
+
+
+impl<'vicinity> ApplyBackend for State <'vicinity> {
+    fn apply<A, I, L>(
+        &mut self,
+        values: A,
+        logs: L,
+        delete_empty: bool,
+    ) where
+        A: IntoIterator<Item=Apply<I>>,
+        I: IntoIterator<Item=(H256, H256)>,
+        L: IntoIterator<Item=Log>,
+    {
+        let mut deletedSet = HashSet::<H160>::new();
+        let mut accounts: HashMap<H160,Account> = HashMap::new();
+        for apply in values {
+            match apply {
+                Apply::Modify {
+                    address, basic, code, storage, reset_storage,
+                } => {
+                    let is_empty = {
+                        let mut account = {
+                            self.get_account(address.clone())
+                        };
+
+                        account.set_balance(basic.nonce);
+                        account.set_nonce(basic.nonce);
+                        if let Some(code) = code {
+                            account.init_code(code);
+                        }
+                        for (index, value) in storage {
+                            account.set_storage(index,value);
+                        }
+
+                       let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), account.address_hash(&address));
+
+                        account.commit_storage(&self.factories.trie,account_db.as_hash_db_mut());
+                        account.cache_code(account_db.as_hash_db_mut());
+                        accounts.insert(address.clone(),account);
+                        false
+                    };
+
+                    if is_empty && delete_empty {
+                        deletedSet.insert(address.clone());
+                    }
+                },
+                Apply::Delete {
+                    address,
+                } => {
+                    deletedSet.insert(address.clone());
+                },
+            }
+        }
+
+        let mut trie = self.factories.trie.from_existing(self.db.as_hash_db_mut(), &mut self.root).unwrap();
+        for address in deletedSet {
+            trie.remove(address.as_bytes());
+        }
+
+        for (address,acc) in accounts {
+            trie.insert(address.as_bytes(), &acc.rlp()).unwrap();
+        }
+
+        for log in logs {
+            self.logs.push(log);
+        }
+    }
 }
 
 #[cfg(test)]

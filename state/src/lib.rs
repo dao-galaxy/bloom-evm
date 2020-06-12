@@ -1,4 +1,7 @@
 
+
+extern crate alloc;
+
 use ethereum_types::{H160,H256,U256};
 
 mod state;
