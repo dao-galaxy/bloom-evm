@@ -8,14 +8,15 @@ mod state;
 mod account_db;
 mod account;
 
-use state::State;
-use account_db::Factory as AccountFactory;
+pub use state::State;
+pub use account_db::Factory as AccountFactory;
 use ethtrie;
 
 
 
 pub const COLUMN_COUNT: u32 = 9;
 pub const COL_STATE: u32 = 0;
+pub const COL_BLOCK: u32 = 1;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]

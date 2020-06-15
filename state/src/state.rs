@@ -1,12 +1,13 @@
 
-use ethtrie;
+use ethtrie::{Result as TrieResult,Layout};
 use journaldb::JournalDB;
 use ethereum_types::{Address, H256, U256, H160};
 use evm::backend::{Basic,Log,Backend,ApplyBackend,Apply};
 
 use crate::{BackendVicinity,Factories};
 use crate::account::Account;
-use trie_db::Trie;
+use trie_db::{Trie,TrieError,TrieLayout};
+use trie_db::NodeCodec;
 
 use std::collections::{HashSet, HashMap};
 
@@ -23,13 +24,31 @@ pub struct State<'vicinity> {
 
 impl<'vicinity> State<'vicinity> {
     pub fn new(vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> Self {
+        let root = ethtrie::RlpNodeCodec::hashed_null_node();
+
         State{
             vicinity,
             db,
-            root: H256::default(),
+            root,
             factories,
             logs: vec![],
         }
+    }
+
+    pub fn from_existing(root: H256, vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> TrieResult<State> {
+        if !db.as_hash_db().contains(&root, hash_db::EMPTY_PREFIX) {
+            return Err(Box::new(TrieError::InvalidStateRoot(root)));
+        }
+
+        let state = State {
+            vicinity,
+            db,
+            root,
+            factories,
+            logs: vec![],
+        };
+
+        Ok(state)
     }
 
     pub fn get_account(&self,address: H160) -> Account {
@@ -39,6 +58,13 @@ impl<'vicinity> State<'vicinity> {
         let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
         let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         maybe_acc.unwrap_or_else(| | Account::new_basic(U256::zero(), U256::zero()))
+
+    }
+
+    pub fn commit(&mut self) -> H256 {
+        let res = self.db.drain_transaction_overlay().unwrap();
+        self.db.backing().write(res);
+        self.root.clone()
     }
 
 }
@@ -74,15 +100,28 @@ impl <'vicinity> Backend for State<'vicinity> {
 
     fn basic(&self,address: H160) -> Basic {
         let db = &self.db.as_hash_db();
-        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+        let db_ret = self.factories.trie.readonly(db, &self.root);
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-        let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
-        let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
-        Basic{
-            balance: acc.balance().clone() ,
-            nonce: acc.balance().clone(),
-        }
+        let ret = match db_ret {
+            Ok(db) => {
+                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+                let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+                let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+                Basic{
+                    balance: acc.balance().clone() ,
+                    nonce: acc.balance().clone(),
+                }
+            },
+            _ => {
+                Basic{
+                    balance: U256::zero() ,
+                    nonce: U256::zero(),
+                }
+            }
+        };
+        ret
+
+
     }
 
     fn code_hash(&self, address: H160) -> H256 {
@@ -167,11 +206,12 @@ impl<'vicinity> ApplyBackend for State <'vicinity> {
                     address, basic, code, storage, reset_storage,
                 } => {
                     let is_empty = {
+
                         let mut account = {
                             self.get_account(address.clone())
                         };
 
-                        account.set_balance(basic.nonce);
+                        account.set_balance(basic.balance);
                         account.set_nonce(basic.nonce);
                         if let Some(code) = code {
                             account.init_code(code);
@@ -227,6 +267,13 @@ mod tests {
     use ethereum_types::{Address, H256, U256, H160};
     use crate::account_db::Factory;
     use crate::Factories;
+    use std::str::FromStr;
+    use evm::executor::StackExecutor;
+    use evm::Config;
+    use evm::backend::{Basic,Log,Backend,ApplyBackend,Apply};
+
+
+
 
 
 
@@ -240,6 +287,8 @@ mod tests {
         let mut db = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
         let trie_layout = ethtrie::Layout::default();
         let trie_spec = TrieSpec::default();
+
+        let gas_limit = 1000000u32;
 
         let vicinity = BackendVicinity {
             gas_price: U256::zero(),
@@ -260,7 +309,27 @@ mod tests {
             accountdb: account_factory,
         };
 
-        let state = State::new(&vicinity,db,factories);
+        let mut state = State::new(&vicinity,db,factories);
+        let address = H160::from_str("0000000000000000000000000000000000000001").expect("not valid address");
+        let value = U256::from_dec_str("10").expect("");
+
+        {
+            let config = Config::istanbul();
+            let mut executor = StackExecutor::new(
+                &state,
+                gas_limit as usize,
+                &config,
+            );
+            executor.deposit(address,value);
+            let (values, logs) = executor.deconstruct();
+            state.apply(values, logs, true);
+        }
+
+        let acc = state.get_account(address);
+        assert_eq!(*acc.balance(),value);
+        let root = state.commit();
+        println!("root={}",root);
+
     }
 
 }

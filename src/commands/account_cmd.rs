@@ -85,7 +85,7 @@ pub enum Account{
 }
 
 impl Account {
-	pub fn new(backend: &MemoryBackend,address: H160) -> Self {
+	pub fn new(backend: &mut dyn Backend,address: H160) -> Self {
 		let account = backend.basic(address.clone());
 		let code_size = backend.code_size(address.clone());
 		if code_size == 0 {
@@ -115,7 +115,7 @@ impl fmt::Display for Account {
 
 
 impl AccountCmd {
-	pub fn run(&self,mut backend: MemoryBackend) {
+	pub fn run(&self,backend: &mut dyn Backend) {
 		match &self.cmd {
 			Command::Query {address, storage_trie} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");

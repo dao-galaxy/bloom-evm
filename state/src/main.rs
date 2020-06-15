@@ -7,21 +7,27 @@ extern crate rlp;
 use memory_db::{MemoryDB, PrefixedKey};
 use keccak_hasher::KeccakHasher;
 use trie_db::DBValue;
-use ethtrie;
 use ethtrie::trie::TrieMut;
 use hex_literal::hex;
 use trie_db::Trie;
-use std::sync::Arc;
 use hex as hhex;
 
-use ethereum_types::{H160, H256, U256};
 use kvdb_rocksdb::{Database, DatabaseConfig};
+
+
+use ethtrie;
+use trie_db::TrieSpec;
+use std::sync::Arc;
+use ethereum_types::{Address, H256, U256, H160};
+use std::str::FromStr;
+
 
 fn main(){
 
-    read();
 
 }
+
+
 
 fn read(){
     let dataPath = "test-db";
