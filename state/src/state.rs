@@ -233,12 +233,11 @@ impl<'vicinity> ApplyBackend for State <'vicinity> {
                         for (index, value) in storage {
                             account.set_storage(index,value);
                         }
-                        {
-                            let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), account.address_hash(&address));
-                            account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut());
-                        }
-                        let db = self.db.as_hash_db_mut();
-                        account.commit_code(db);
+
+                        let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), account.address_hash(&address));
+                        account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut());
+
+                        account.commit_code(account_db.as_hash_db_mut());
                         accounts.insert(address.clone(),account);
                         false
                     };
