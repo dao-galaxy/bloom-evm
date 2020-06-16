@@ -1,7 +1,7 @@
 use crate::executer;
 use crate::commands::account_cmd;
 use ethereum_types::{H160,U256};
-use evm::backend::{MemoryBackend};
+use evm::backend::{Backend, ApplyBackend};
 use evm::executor::StackExecutor;
 use hex;
 use structopt::StructOpt;
@@ -86,7 +86,7 @@ enum Command {
 
 
 impl ContractCmd {
-    pub fn run(&self, backend: MemoryBackend) {
+    pub fn run<B: Backend + ApplyBackend + Clone>(&self, backend: &mut B) {
         match &self.cmd {
             Command::Deploy {from,value,gas,gas_price,code,code_file} => {
 
@@ -122,7 +122,7 @@ impl ContractCmd {
                 let code = hex::decode(code.as_str()).expect("Code is invalid");
                 let config = Config::istanbul();
                 let executor = StackExecutor::new(
-                    &backend,
+                    backend,
                     gas_limit as usize,
                     &config,
                 );
@@ -144,9 +144,10 @@ impl ContractCmd {
                             gas_limit as usize,
                         ))
                     },
+                    backend
                 ).expect("Create contract failed");
 
-                let account = account_cmd::Account::new(&backend, contract_address.clone());
+                let account = account_cmd::Account::new(backend, contract_address.clone());
                 println!("Create contract successful, {}", account);
             }
 
@@ -184,7 +185,7 @@ impl ContractCmd {
                 let input = hex::decode(data.as_str()).expect("Input is invalid");
                 let config = Config::istanbul();
                 let executor = StackExecutor::new(
-                    &backend,
+                    backend,
                     gas_limit as usize,
                     &config,
                 );
@@ -203,6 +204,7 @@ impl ContractCmd {
                         input,
                         gas_limit as usize,
                     )),
+                    backend
                 ).expect("Call message failed");
 
                 println!("Contract Called, State OK.");

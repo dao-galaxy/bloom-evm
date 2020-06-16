@@ -11,7 +11,7 @@ use account_cmd::AccountCmd;
 use deposit_cmd::DepositCmd;
 use contract_cmd::ContractCmd;
 
-use ethereum_types::{U256, H160};
+use ethereum_types::{U256, H160, H256};
 use evm::backend::MemoryBackend as Backend;
 use evm::backend::MemoryVicinity as Vicinity;
 use evm::backend::MemoryAccount as Account;
@@ -37,7 +37,7 @@ pub enum Subcommand {
 
 impl Subcommand {
 	pub fn run(&self) {
-		let vicinity = state::BackendVicinityVicinity {
+		let vicinity = state::BackendVicinity {
 			gas_price: U256::zero(),
 			origin: H160::zero(),
 			chain_id: U256::zero(),
@@ -50,16 +50,19 @@ impl Subcommand {
 		};
 		let data_path = "test-db";
 		let mut config = DatabaseConfig::with_columns(state::COLUMN_COUNT);
-		let database = Arc::new(Database::open(&config, dataPath).unwrap());
+		let database = Arc::new(Database::open(&config, data_path).unwrap());
 
 		let root =
 		{
-			let v =  database.get(state::COL_BLOCK,u'root');
+			let default_ = [0u8;32].to_vec();
+			let v =  database.get(state::COL_BLOCK,b"root");
 
-			let root = v.unwrap_or(Some(H256::zero())).unwrap_or(H256::zero());
+			let root = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
 			root.clone()
-		}
-		let mut db = journaldb::new(database,journaldb::Algorithm::Archive,state::COL_STATE);
+		};
+		let root = H256::from_slice(root.as_slice());
+
+		let mut db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
 		let trie_spec = TrieSpec::default();
 
@@ -78,31 +81,27 @@ impl Subcommand {
 				state::State::new(&vicinity,db,factories)
 			},
 			false => {
-				state::State::from_existing(H256::from_slice(root.as_slice()),&vicinity,db,factories)
+				state::State::from_existing(root,&vicinity,db,factories).unwrap()
 			}
 		};
 
-
-
-
-		let config = Config::istanbul();
-		let gas_limit = 100000;
-		let mut executor = StackExecutor::new(
-			&backend,
-			gas_limit as usize,
-			&config,
-		);
-
 		match self {
 			Subcommand::Account(cmd) => {
-				cmd.run(backend);
+				cmd.run(&mut backend);
 			}
 			Subcommand::Deposit(cmd) => {
-				cmd.run(&mut executor);
+				cmd.run(&mut backend);
 			}
 			Subcommand::Contract(cmd) => {
-				cmd.run(backend);
+				cmd.run(&mut backend);
 			}
+		}
+
+		let root = backend.commit();
+		{
+			let mut transaction = database.transaction();
+			transaction.put(state::COL_BLOCK, b"root", root.as_bytes());
+			database.write(transaction).unwrap();
 		}
 	}
 }

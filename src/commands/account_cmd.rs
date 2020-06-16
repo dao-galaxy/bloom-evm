@@ -85,7 +85,7 @@ pub enum Account{
 }
 
 impl Account {
-	pub fn new(backend: &mut dyn Backend,address: H160) -> Self {
+	pub fn new<B: Backend>(backend: &mut B,address: H160) -> Self {
 		let account = backend.basic(address.clone());
 		let code_size = backend.code_size(address.clone());
 		if code_size == 0 {
@@ -115,12 +115,12 @@ impl fmt::Display for Account {
 
 
 impl AccountCmd {
-	pub fn run(&self,backend: &mut dyn Backend) {
+	pub fn run<B: Backend + ApplyBackend>(&self,backend: &mut B) {
 		match &self.cmd {
 			Command::Query {address, storage_trie} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");
 				if !storage_trie {
-					let account = Account::new(&backend, from);
+					let account = Account::new(backend, from);
 					println!("{}", account);
 				} else {
 					println!("--storage_trie has not yet supported!");
@@ -146,7 +146,7 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(&backend,from);
+				let account = Account::new(backend,from);
 				println!("{}", account);
 			},
 
@@ -173,7 +173,7 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(&backend,from);
+				let account = Account::new(backend,from);
 				println!("{}", account);
 			},
 
@@ -186,7 +186,7 @@ impl AccountCmd {
 				let config = Config::istanbul();
 				let gas_limit = 100000;
 				let mut executor = StackExecutor::new(
-					&backend,
+					backend,
 					gas_limit as usize,
 					&config,
 				);
@@ -197,10 +197,13 @@ impl AccountCmd {
 					value,
 				}) {
 					Ok(_) => {
-						let account = Account::new(&backend, from);
+						let (values, logs) = executor.deconstruct();
+						backend.apply(values, logs, true);
+
+						let account = Account::new(backend, from);
 						println!("{}", account);
 
-						let account = Account::new(&backend, to);
+						let account = Account::new(backend, to);
 						println!("{}", account);
 					},
 					Err(err) => {

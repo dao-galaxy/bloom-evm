@@ -125,6 +125,7 @@ dependencies = [
  "kvdb-rocksdb",
  "parity-bytes",
  "parity-scale-codec",
+ "patricia-trie-ethereum",
  "primitive-types",
  "rlp",
  "rustc-hex",

@@ -12,7 +12,6 @@ use trie_db::NodeCodec;
 use std::collections::{HashSet, HashMap};
 
 
-
 pub struct State<'vicinity> {
     vicinity: &'vicinity BackendVicinity,
     /// Backing database.
@@ -20,6 +19,18 @@ pub struct State<'vicinity> {
     root: H256,
     factories: Factories,
     logs: Vec<Log>,
+}
+
+impl<'vicinity> Clone for State<'vicinity> {
+    fn clone(&self) -> Self {
+        State {
+            vicinity: self.vicinity,
+            db: self.db.boxed_clone(),
+            root: self.root.clone(),
+            factories: self.factories.clone(),
+            logs: self.logs.clone(),
+        }
+    }
 }
 
 impl<'vicinity> State<'vicinity> {
@@ -109,7 +120,7 @@ impl <'vicinity> Backend for State<'vicinity> {
                 let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
                 Basic{
                     balance: acc.balance().clone() ,
-                    nonce: acc.balance().clone(),
+                    nonce: acc.nonce().clone(),
                 }
             },
             _ => {
@@ -140,7 +151,10 @@ impl <'vicinity> Backend for State<'vicinity> {
 
         let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
-        let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+        let mut acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+
+        let db = self.db.as_hash_db();
+        acc.cache_code(db);
         let code_size = match acc.code_size() {
             Some(s) => s,
             None => 0usize,
@@ -219,11 +233,12 @@ impl<'vicinity> ApplyBackend for State <'vicinity> {
                         for (index, value) in storage {
                             account.set_storage(index,value);
                         }
-
-                       let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), account.address_hash(&address));
-
-                        account.commit_storage(&self.factories.trie,account_db.as_hash_db_mut());
-                        account.cache_code(account_db.as_hash_db_mut());
+                        {
+                            let mut account_db = self.factories.accountdb.create(self.db.as_hash_db_mut(), account.address_hash(&address));
+                            account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut());
+                        }
+                        let db = self.db.as_hash_db_mut();
+                        account.commit_code(db);
                         accounts.insert(address.clone(),account);
                         false
                     };

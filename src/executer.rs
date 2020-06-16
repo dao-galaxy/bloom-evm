@@ -1,6 +1,6 @@
 use ethereum_types::{H160, U256};
 use evm::executor::StackExecutor;
-use evm::backend::MemoryBackend as Backend;
+use evm::backend::Backend;
 use evm::backend::MemoryVicinity as Vicinity;
 use evm::backend::MemoryAccount as Account;
 use evm::ExitReason;
@@ -57,34 +57,36 @@ pub enum Error
 // }
 
 /// Execute an EVM operation.
-pub fn execute_evm<F, R>(
+pub fn execute_evm<F, R,B>(
 	source: H160,
 	value: U256,
 	gas_limit: u32,
 	gas_price: U256,
 	nonce: Option<U256>,
 	f: F,
+	backend: & mut B
 ) -> Result<R, Error> where
-	F: FnOnce(&mut StackExecutor<Backend>) -> (R, ExitReason),
+	F: FnOnce(&mut StackExecutor<B>) -> (R, ExitReason),
+	B: Backend + ApplyBackend + Clone,
 {
 	assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
 
-	let vicinity = Vicinity {
-		gas_price: U256::zero(),
-		origin: H160::zero(),
-		chain_id: U256::zero(),
-		block_hashes: Vec::new(),
-		block_number: U256::zero(),
-		block_coinbase: H160::zero(),
-		block_timestamp: U256::zero(),
-		block_difficulty: U256::zero(),
-		block_gas_limit: U256::zero(),
-	};
-	let state = BTreeMap::<H160, Account>::new();
-	let mut backend = Backend::new(&vicinity, state);
+//	let vicinity = Vicinity {
+//		gas_price: U256::zero(),
+//		origin: H160::zero(),
+//		chain_id: U256::zero(),
+//		block_hashes: Vec::new(),
+//		block_number: U256::zero(),
+//		block_coinbase: H160::zero(),
+//		block_timestamp: U256::zero(),
+//		block_difficulty: U256::zero(),
+//		block_gas_limit: U256::zero(),
+//	};
+//	let state = BTreeMap::<H160, Account>::new();
+//	let mut backend = Backend::new(&vicinity, state);
 	let config = Config::istanbul();
 	let mut executor = StackExecutor::new(
-		&backend,
+		backend,
 		gas_limit as usize,
 		&config,
 	);
@@ -100,7 +102,7 @@ pub fn execute_evm<F, R>(
 		assert!(source_account.nonce == nonce, Error::InvalidNonce);
 	}
 
-	let (retv, reason) = f(&mut executor.clone());
+	let (retv, reason) = f(&mut executor);
 
 	let ret = match reason {
 		ExitReason::Succeed(_) => Ok(retv),
