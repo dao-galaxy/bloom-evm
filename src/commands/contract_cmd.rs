@@ -3,6 +3,10 @@ use crate::commands::account_cmd;
 use ethereum_types::{H160,U256};
 use evm::backend::{Backend, ApplyBackend};
 use evm::executor::StackExecutor;
+use evm::Handler;
+use evm::Context;
+use evm::Capture;
+use evm::ExitReason;
 use hex;
 use structopt::StructOpt;
 use evm::Config;
@@ -52,6 +56,38 @@ enum Command {
 
     /// Message call
     Call {
+        /// The address which send messageCall
+        #[structopt(long = "from")]
+        from: String,
+
+        /// The value (Wei) for messageCall
+        #[structopt(long = "value")]
+        value: String,
+
+        /// The receiver address for messageCall
+        #[structopt(long = "to")]
+        to: String,
+
+        /// The gas limit for messageCall
+        #[structopt(long = "gas")]
+        gas: u32,
+
+        /// The gas price (Wei) for messageCall
+        #[structopt(long = "gas-price")]
+        gas_price: String,
+
+        /// The input data for messageCall
+        #[structopt(long = "data")]
+        data: Option<String>,
+
+        /// The input data file for messageCall
+        #[structopt(long = "data-file")]
+        data_file: Option<String>,
+
+    },
+
+    /// Transaction call
+    Transaction {
         /// The address which send messageCall
         #[structopt(long = "from")]
         from: String,
@@ -151,7 +187,7 @@ impl ContractCmd {
                 println!("Create contract successful, {}", account);
             }
 
-            Command::Call {from,value,to,gas,gas_price,data,data_file} => {
+            Command::Transaction {from,value,to,gas,gas_price,data,data_file} => {
                 let from = H160::from_str(from).expect("From should be a valid address");
                 let to = H160::from_str(to).expect("To should be a valid address");
                 let value = U256::from_dec_str(value.as_str()).expect("Value is invalid");
@@ -191,7 +227,7 @@ impl ContractCmd {
                 );
                 let nonce = Some(executor.nonce(from.clone()));
 
-                executer::execute_evm(
+                let retv = executer::execute_evm(
                     from.clone(),
                     value,
                     gas_limit,
@@ -208,6 +244,83 @@ impl ContractCmd {
                 ).expect("Call message failed");
 
                 println!("Contract Called, State OK.");
+            }
+
+            Command::Call {from,value,to,gas,gas_price,data,data_file} => {
+                let from = H160::from_str(from).expect("From should be a valid address");
+                let to = H160::from_str(to).expect("To should be a valid address");
+                let value = U256::from_dec_str(value.as_str()).expect("Value is invalid");
+                let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
+                let gas_limit = *gas;
+
+                let mut contents = String::new();
+
+                let data = match data {
+                    Some(d) => {
+                        Ok(d)
+                    }
+                    None => {
+                        let ret = match data_file {
+                            Some(file) => {
+                                let mut f = File::open(file).expect(" data file not found");
+
+                                f.read_to_string(&mut contents)
+                                    .expect("something went wrong reading the file");
+                                Ok(&contents)
+                            }
+
+                            None => {
+                                Err(())
+                            }
+                        };
+                        ret
+                    }
+                }.unwrap_or(&contents);
+
+                let input = hex::decode(data.as_str()).expect("Input is invalid");
+                let config = Config::istanbul();
+                let mut executor = StackExecutor::new(
+                    backend,
+                    gas_limit as usize,
+                    &config,
+                );
+                let nonce = Some(executor.nonce(from.clone()));
+                let context = Context {
+                    caller: from.clone(),
+                    address: to.clone(),
+                    apparent_value: value,
+                };
+                let retv =  executor.call(
+                        to,
+                        None,
+                        input,
+                        None,
+                        true,
+                        context);
+
+                let (reason,retv) = match retv {
+                    Capture::Exit(s) => s,
+                    Capture::Trap(_) => unreachable!(),
+                };
+
+                match reason {
+                    ExitReason::Succeed(_) => {
+                        let r = hex::encode(retv);
+                        println!("Contract Message Called, State OK. result: {:?}",r);
+                    }
+                    ExitReason::Error(e) => {
+                        println!("Contract message call encounter error. {:?}",e);
+
+                    }
+                    ExitReason::Revert(e) => {
+                        println!("Contract message call encounter error. {:?}",e);
+                    },
+                    ExitReason::Fatal(e) => {
+                        println!("Contract message call encounter error. {:?}",e);
+                    },
+                };
+
+
             }
         }
     }

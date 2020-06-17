@@ -61,6 +61,8 @@ impl Subcommand {
 			root.clone()
 		};
 		let root = H256::from_slice(root.as_slice());
+		//println!("get root={:?}",root.clone());
+
 
 		let mut db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
@@ -102,6 +104,8 @@ impl Subcommand {
 			let mut transaction = database.transaction();
 			transaction.put(state::COL_BLOCK, b"root", root.as_bytes());
 			database.write(transaction).unwrap();
+			//println!("set root={:?}",root.clone());
+
 		}
 	}
 }

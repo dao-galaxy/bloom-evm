@@ -8,6 +8,7 @@ use crate::{BackendVicinity,Factories};
 use crate::account::Account;
 use trie_db::{Trie,TrieError,TrieLayout};
 use trie_db::NodeCodec;
+use hex;
 
 use std::collections::{HashSet, HashMap};
 
@@ -153,8 +154,8 @@ impl <'vicinity> Backend for State<'vicinity> {
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         let mut acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
 
-        let db = self.db.as_hash_db();
-        acc.cache_code(db);
+        let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
+        acc.cache_code(accountdb.as_hash_db());
         let code_size = match acc.code_size() {
             Some(s) => s,
             None => 0usize,
@@ -174,6 +175,8 @@ impl <'vicinity> Backend for State<'vicinity> {
                 Some(c) => c.to_vec(),
                 None => vec![],
             };
+//            let c_str = hex::encode(code.clone());
+//            println!("adress={:?},code={:?}",address.clone(),c_str);
             return code;
         }
         vec![]
@@ -193,8 +196,10 @@ impl <'vicinity> Backend for State<'vicinity> {
                 Ok(v) => v,
                 Err(e) => H256::zero(),
             };
+            println!("storage get|address={:?}, index={:?},value={:?}",address,index,code.clone());
             return code;
         }
+        println!("storage get| address={:?}, index={:?}, value={:?}",address,index,H256::zero());
         H256::zero()
     }
 
@@ -231,6 +236,7 @@ impl<'vicinity> ApplyBackend for State <'vicinity> {
                             account.init_code(code);
                         }
                         for (index, value) in storage {
+                            println!("storage set|address={:?}, index={:?},value={:?}",address.clone(),index.clone(),value.clone());
                             account.set_storage(index,value);
                         }
 
