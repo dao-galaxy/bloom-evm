@@ -7,6 +7,7 @@ use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
 use std::collections::BTreeMap;
+use bloom_state::State;
 
 #[derive(Debug)]
 pub enum Error
@@ -57,17 +58,16 @@ pub enum Error
 // }
 
 /// Execute an EVM operation.
-pub fn execute_evm<F, R,B>(
+pub fn execute_evm<F, R>(
 	source: H160,
 	value: U256,
 	gas_limit: u32,
 	gas_price: U256,
 	nonce: Option<U256>,
 	f: F,
-	backend: & mut B
+	backend: & mut State
 ) -> Result<R, Error> where
-	F: FnOnce(&mut StackExecutor<B>) -> (R, ExitReason),
-	B: Backend + ApplyBackend + Clone,
+	F: FnOnce(&mut StackExecutor<State>) -> (R, ExitReason),
 {
 	assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
 

@@ -9,8 +9,13 @@ use crate::account::Account;
 use trie_db::{Trie,TrieError,TrieLayout};
 use trie_db::NodeCodec;
 use hex;
+use keccak_hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
+use parity_bytes::Bytes;
+use hash_db::{HashDB,EMPTY_PREFIX};
 
-use std::collections::{HashSet, HashMap};
+
+
+use std::collections::{HashSet, HashMap, BTreeMap};
 
 
 pub struct State<'vicinity> {
@@ -69,8 +74,38 @@ impl<'vicinity> State<'vicinity> {
 
         let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
         let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
-        maybe_acc.unwrap_or_else(| | Account::new_basic(U256::zero(), U256::zero()))
+        let mut acc = maybe_acc.unwrap_or_else(| | Account::new_basic(U256::zero(), U256::zero()));
+        let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
+        acc.cache_code(accountdb.as_hash_db());
+        acc
+    }
 
+    // get code by address and code hash
+    pub fn get_code(&self, address: H160, code_hash: H256) -> Option<Bytes> {
+
+        let address_hash = {
+            let hash = keccak(address);
+            hash
+        };
+        let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), address_hash);
+
+        match accountdb.get(&code_hash, hash_db::EMPTY_PREFIX) {
+            Some(x) => {
+                Some(x)
+            },
+
+            _ => {
+                None
+            }
+        }
+    }
+
+    // get storage by address and storage root
+    pub fn get_storage(&self, address: H160, storage_root: H256) -> BTreeMap<H256,H256> {
+
+        let account = Account::new_basic(U256::zero(), U256::zero());
+        let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(&address));
+        account.get_storage(accountdb.as_hash_db(), storage_root).unwrap()
     }
 
     pub fn commit(&mut self) -> H256 {
@@ -79,6 +114,23 @@ impl<'vicinity> State<'vicinity> {
         self.root.clone()
     }
 
+    pub fn storage_root(&self,address: H160) -> H256 {
+        let db = &self.db.as_hash_db();
+        let db_ret = self.factories.trie.readonly(db, &self.root);
+
+        let ret = match db_ret {
+            Ok(db) => {
+                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+                let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+                let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
+                acc.storage_root()
+            },
+            _ => {
+                KECCAK_NULL_RLP
+            }
+        };
+        ret
+    }
 }
 
 impl <'vicinity> Backend for State<'vicinity> {
@@ -132,8 +184,6 @@ impl <'vicinity> Backend for State<'vicinity> {
             }
         };
         ret
-
-
     }
 
     fn code_hash(&self, address: H160) -> H256 {

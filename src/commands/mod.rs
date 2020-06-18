@@ -24,6 +24,8 @@ use trie_db::TrieSpec;
 use trie_db::DBValue;
 use state::AccountFactory;
 use state::Factories;
+use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
+
 
 
 
@@ -60,7 +62,10 @@ impl Subcommand {
 			let root = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
 			root.clone()
 		};
-		let root = H256::from_slice(root.as_slice());
+
+
+		//let root = H256::from_slice(root.as_slice());
+		let root = H256::from_str("80df0689f530e11705a45c4f18a0da978902cc4b10b9728b244af8332b44ed2a").expect("");
 		//println!("get root={:?}",root.clone());
 
 
@@ -104,7 +109,7 @@ impl Subcommand {
 			let mut transaction = database.transaction();
 			transaction.put(state::COL_BLOCK, b"root", root.as_bytes());
 			database.write(transaction).unwrap();
-			//println!("set root={:?}",root.clone());
+			println!("set root={:?}",root.clone());
 
 		}
 	}

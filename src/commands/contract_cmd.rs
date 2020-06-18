@@ -8,6 +8,7 @@ use evm::Context;
 use evm::Capture;
 use evm::ExitReason;
 use hex;
+use bloom_state::State;
 use structopt::StructOpt;
 use evm::Config;
 use std::fs::File;
@@ -122,7 +123,7 @@ enum Command {
 
 
 impl ContractCmd {
-    pub fn run<B: Backend + ApplyBackend + Clone>(&self, backend: &mut B) {
+    pub fn run(&self, backend: &mut State) {
         match &self.cmd {
             Command::Deploy {from,value,gas,gas_price,code,code_file} => {
 
@@ -183,8 +184,7 @@ impl ContractCmd {
                     backend
                 ).expect("Create contract failed");
 
-                let account = account_cmd::Account::new(backend, contract_address.clone());
-                println!("Create contract successful, {}", account);
+                println!("Create contract successful, contract address is {:?}", contract_address);
             }
 
             Command::Transaction {from,value,to,gas,gas_price,data,data_file} => {

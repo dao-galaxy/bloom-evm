@@ -3,10 +3,11 @@ use evm::backend::{Backend, ApplyBackend};
 use evm::backend::{MemoryBackend,Apply,Basic};
 use evm::executor::StackExecutor;
 use evm::Transfer;
+use evm::Config;
 use ethereum_types::{H160, H256, U256};
+use bloom_state::State;
 use std::fmt;
 use std::collections::BTreeMap;
-use evm::Config;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
 // target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
@@ -27,9 +28,13 @@ enum Command {
 		#[structopt(long = "address")]
 		address: String,
 
-		/// Flag whether show the storage trie
+		/// Show the storage trie
 		#[structopt(long = "storage-trie")]
-		storage_trie:bool
+		storage_trie: Option<String>,
+
+		/// Show the storage trie
+		#[structopt(long = "code-hash")]
+		code_hash: Option<String>,
 	},
 
 	/// Create external account
@@ -78,52 +83,83 @@ enum Command {
 	}
 }
 
-#[derive(Debug)]
-pub enum Account{
-	EXTERNAL(H160, U256, U256),
-	CONTRACT(H160, U256, U256, H256, H256),
-}
-
-impl Account {
-	pub fn new<B: Backend>(backend: &mut B,address: H160) -> Self {
-		let account = backend.basic(address.clone());
-		let code_size = backend.code_size(address.clone());
-		if code_size == 0 {
-			Account::EXTERNAL(address.clone(), account.balance, account.nonce)
-		}else {
-			let code_hash = backend.code_hash(address.clone());
-			Account::CONTRACT(address.clone(), account.balance, account.nonce, code_hash.clone(), code_hash.clone())
-		}
-	}
-}
-
-impl fmt::Display for Account {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-		match self {
-			Account::EXTERNAL(address, value, nonce) => {
-				write!(f,"External Account Info: {{address: {:?}, balance: {:?}, nonce: {:?} }}",address,value,nonce)
-			},
-
-			Account::CONTRACT(address, value, nonce, code_hash, storage_trie) => {
-				write!(f,"Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
-					   address, value, nonce, code_hash, storage_trie)
-			},
-		}
-	}
-}
+//#[derive(Debug)]
+//pub enum Account{
+//	EXTERNAL(H160, U256, U256),
+//	CONTRACT(H160, U256, U256, H256, H256),
+//}
+//
+//impl Account {
+//	pub fn new(backend: &mut State,address: H160) -> Self {
+//		let a = backend.get_account(address.clone());
+//
+//		println!("{:?}",a);
+//
+//		let account = backend.basic(address.clone());
+//		let code_size = backend.code_size(address.clone());
+//		if code_size == 0 {
+//			Account::EXTERNAL(address.clone(), account.balance, account.nonce)
+//		}else {
+//			let code_hash = backend.code_hash(address.clone());
+//			let storage_root = backend.storage_root(address.clone());
+//			Account::CONTRACT(address.clone(), account.balance, account.nonce, code_hash.clone(), storage_root)
+//		}
+//	}
+//}
+//
+//impl fmt::Display for Account {
+//	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//
+//		match self {
+//			Account::EXTERNAL(address, value, nonce) => {
+//				write!(f,"External Account Info: {{address: {:?}, balance: {:?}, nonce: {:?} }}",address,value,nonce)
+//			},
+//
+//			Account::CONTRACT(address, value, nonce, code_hash, storage_trie) => {
+//				write!(f,"Contract Account Info: {{address: {:?}, balance: {:?}, nonce: {:?}, code_hash: {:?}, storage_trie: {:?} }}",
+//					   address, value, nonce, code_hash, storage_trie)
+//			},
+//		}
+//	}
+//}
 
 
 impl AccountCmd {
-	pub fn run<B: Backend + ApplyBackend>(&self,backend: &mut B) {
+	pub fn run(&self,backend: &mut State) {
 		match &self.cmd {
-			Command::Query {address, storage_trie} => {
+			Command::Query {address, storage_trie, code_hash} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");
-				if !storage_trie {
-					let account = Account::new(backend, from);
-					println!("{}", account);
-				} else {
-					println!("--storage_trie has not yet supported!");
+				let account = backend.get_account(from.clone());
+
+				match (storage_trie,code_hash) {
+
+					(None, None) => {
+						println!("{:?}", account);
+					},
+
+					(Some(x), None) => {
+						let storage_root = H256::from_str(x).expect("--storage-root argument must be a valid root");
+						let kv = backend.get_storage(from.clone(), storage_root.clone());
+						for (k, v) in kv.iter(){
+							println!("{:?} -> {:?}",k,v);
+						}
+					},
+
+					(None, Some(code_hash)) => {
+						let code_hash = H256::from_str(code_hash).expect("--code-hash argument must be a valid code hash");
+						let code = backend.get_code(from.clone(),code_hash.clone());
+						let code = code.unwrap_or(vec![]);
+						let len = {
+							let c = &code;
+							c.len()
+						};
+						let code_str = hex::encode(code);
+						println!("Contract Account code info:{{ size: {:}, code: {:?}}}",len,code_str);
+					},
+
+					(_, _) => {
+
+					}
 				}
 			},
 
@@ -146,7 +182,7 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(backend,from);
+				let account = backend.get_account(from);
 				println!("{}", account);
 			},
 
@@ -173,7 +209,7 @@ impl AccountCmd {
 				});
 
 				backend.apply(applies,Vec::new(),false);
-				let account = Account::new(backend,from);
+				let account = backend.get_account(from);
 				println!("{}", account);
 			},
 
@@ -200,10 +236,10 @@ impl AccountCmd {
 						let (values, logs) = executor.deconstruct();
 						backend.apply(values, logs, true);
 
-						let account = Account::new(backend, from);
+						let account = backend.get_account(from);
 						println!("{}", account);
 
-						let account = Account::new(backend, to);
+						let account = backend.get_account(to);
 						println!("{}", account);
 					},
 					Err(err) => {

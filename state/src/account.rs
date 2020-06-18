@@ -13,7 +13,7 @@ use keccak_hasher::KeccakHasher;
 
 
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use crate::BasicAccount;
 
@@ -122,7 +122,14 @@ impl Account {
         self.code_size.clone()
     }
 
+    pub fn storage_root(&self) -> H256 {
+        self.storage_root.clone()
+    }
 
+    pub fn is_contract(&self) -> bool {
+        let code_size = self.code_size.unwrap_or(0);
+        code_size > 0
+    }
 
     pub fn is_cached(&self) -> bool {
         !self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == KECCAK_EMPTY)
@@ -178,6 +185,21 @@ impl Account {
         Ok(value)
     }
 
+    pub fn get_storage(&self, db: &dyn HashDB<KeccakHasher, DBValue>, storage_root: H256) -> TrieResult<BTreeMap<H256,H256>> {
+        let db = SecTrieDB::new(&db, &storage_root)?;
+        let mut pairs = BTreeMap::new();
+        let iter = db.iter().unwrap();
+        for pair in iter {
+            let (key, val) = pair.unwrap();
+            let val = ::rlp::decode(&val).expect("decoding db val failed");
+            let value: H256 = BigEndianHash::from_uint(&val);
+            let key = H256::from_slice(key.as_slice());
+            pairs.insert(key,value);
+        }
+
+        Ok(pairs)
+    }
+
     pub fn commit_storage(&mut self, trie_factory: &TrieFactory,
                           db: &mut dyn HashDB<KeccakHasher, DBValue>) -> TrieResult<()> {
         let mut t = trie_factory.from_existing(db, &mut self.storage_root).unwrap();
@@ -210,9 +232,43 @@ impl Account {
 
 impl fmt::Debug for Account {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Account").field("balance",&self.balance)
-            .field("nonce",&self.nonce)
-            .field("code",&self.code_hash)
-            .finish()
+        let code_size = self.code_size.unwrap_or(0);
+        match code_size {
+            0 => {
+                f.debug_struct("External Account").field("balance",&self.balance)
+                    .field("nonce",&self.nonce)
+                    .field("code_hash",&self.code_hash)
+                    .finish()
+            },
+            _ => {
+                f.debug_struct("Contract Account").field("balance",&self.balance)
+                    .field("nonce",&self.nonce)
+                    .field("storage_root",&self.storage_root)
+                    .field("code_hash",&self.code_hash)
+                    .finish()
+            }
+        }
+
+    }
+}
+
+impl fmt::Display for Account {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let code_size = self.code_size.unwrap_or(0);
+        match code_size {
+            0 => {
+                f.debug_struct("External Account").field("balance",&self.balance)
+                    .field("nonce",&self.nonce)
+                    .finish()
+            },
+            _ => {
+                f.debug_struct("Contract Account").field("balance",&self.balance)
+                    .field("nonce",&self.nonce)
+                    .field("storage_root",&self.storage_root)
+                    .field("code_hash",&self.code_hash)
+                    .finish()
+            }
+        }
+
     }
 }
