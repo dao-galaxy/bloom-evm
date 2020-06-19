@@ -24,7 +24,7 @@ use std::str::FromStr;
 
 fn main(){
 
-
+    read();
 }
 
 
@@ -49,6 +49,7 @@ fn read(){
 
 
     let root = hhex::decode("012a15587e70dfb8a4cecdd835fbebad681ad9eea10a874a4a367f2be65965fb").expect("");
+
     let mut root = H256::from_slice(root.as_slice());
     {
         let db = &db.as_hash_db();
@@ -124,6 +125,33 @@ fn write(){
     println!("{:?}",ret)
 }
 
+fn write2(){
+    let dataPath = "test-db";
+    let COLUMN_COUNT = 9;
+    let COL_STATE = 0;
+    let mut config = DatabaseConfig::with_columns(COLUMN_COUNT);
+    let database = Arc::new(Database::open(&config, dataPath).unwrap());
+
+    let mut db = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
+
+    let root = hhex::decode("21ac08246963dc92c4cf6181d38731dea96ef3ce7df6e790a6f9bc072d2ffa47").expect("");
+    let mut root = H256::from_slice(root.as_slice());
+
+    {
+        let mut triedbmut = ethtrie::TrieDBMut::new(db.as_hash_db_mut(), &mut root);
+        triedbmut.insert(b"foo",b"helloff").unwrap();
+        let r = triedbmut.root();
+        println!("{:?}",r);
+    }
+    {
+        let res = db.drain_transaction_overlay().unwrap();
+        db.backing().write(res);
+
+    }
+
+    let ret = hhex::encode(root.as_bytes());
+    println!("{:?}",ret)
+}
 
 //#[cfg(test)]
 //mod tests {

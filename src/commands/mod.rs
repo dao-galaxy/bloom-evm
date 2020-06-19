@@ -64,14 +64,14 @@ impl Subcommand {
 		};
 
 
-		//let root = H256::from_slice(root.as_slice());
-		let root = H256::from_str("80df0689f530e11705a45c4f18a0da978902cc4b10b9728b244af8332b44ed2a").expect("");
+		let root = H256::from_slice(root.as_slice());
+		//let root = H256::from_str("80df0689f530e11705a45c4f18a0da978902cc4b10b9728b244af8332b44ed2a").expect("");
 		//println!("get root={:?}",root.clone());
 
 
-		let mut db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
+		let mut db = journaldb::new(database.clone(),journaldb::Algorithm::EarlyMerge,state::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
-		let trie_spec = TrieSpec::default();
+		let trie_spec = TrieSpec::Generic;
 
 		let gas_limit = 1000000u32;
 

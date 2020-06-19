@@ -213,6 +213,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
+
+[[package]]
 name = "humantime"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -267,6 +273,7 @@ dependencies = [
  "ethereum-types",
  "fastmap",
  "hash-db",
+ "hex",
  "keccak-hash",
  "keccak-hasher",
  "kvdb 0.6.0",

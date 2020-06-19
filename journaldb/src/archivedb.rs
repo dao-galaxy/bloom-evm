@@ -29,6 +29,7 @@ use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use parity_util_mem::MallocSizeOfExt;
 use parity_bytes::Bytes;
 use rlp::{encode, decode};
+use hex;
 
 use crate::{
 	DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash,
@@ -151,7 +152,11 @@ impl JournalDB for ArchiveDB {
 				if self.backing.get(self.column, key.as_bytes())?.is_some() {
 					return Err(error_key_already_exists(&key));
 				}
+
+
 				batch.put(self.column, key.as_bytes(), &value);
+				let k = hex::encode(key);
+				println!("insert key->{:?}",k);
 			}
 			if rc < 0 {
 				assert!(rc == -1);
@@ -159,6 +164,8 @@ impl JournalDB for ArchiveDB {
 					return Err(error_negatively_reference_hash(&key));
 				}
 				batch.delete(self.column, key.as_bytes());
+				let k = hex::encode(key);
+				println!("delete key->{:?}",k);
 			}
 		}
 

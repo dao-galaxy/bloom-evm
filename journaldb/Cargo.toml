@@ -18,6 +18,8 @@ memory-db = "0.21.0"
 parking_lot = "0.10.0"
 fastmap = { path = "../util/fastmap" }
 rlp = "0.4.5"
+hex = "0.3.1"
+
 
 [dev-dependencies]
 env_logger = "0.5"

@@ -69,6 +69,8 @@ impl<'vicinity> State<'vicinity> {
     }
 
     pub fn get_account(&self,address: H160) -> Account {
+        println!("null root={:?}",KECCAK_NULL_RLP);
+
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
@@ -117,7 +119,6 @@ impl<'vicinity> State<'vicinity> {
     pub fn storage_root(&self,address: H160) -> H256 {
         let db = &self.db.as_hash_db();
         let db_ret = self.factories.trie.readonly(db, &self.root);
-
         let ret = match db_ret {
             Ok(db) => {
                 let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
@@ -244,12 +245,15 @@ impl <'vicinity> Backend for State<'vicinity> {
             let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
             let code = match acc.storage_at(accountdb.as_hash_db(), &index) {
                 Ok(v) => v,
-                Err(e) => H256::zero(),
+                Err(e) => {
+                    println!("{:?}",e);
+                    H256::zero()
+                },
             };
-            println!("storage get|address={:?}, index={:?},value={:?}",address,index,code.clone());
+            println!("1.storage get|address={:?}, index={:?},value={:?}",address,index,code.clone());
             return code;
         }
-        println!("storage get| address={:?}, index={:?}, value={:?}",address,index,H256::zero());
+        println!("2.storage get| address={:?}, index={:?}, value={:?}",address,index,H256::zero());
         H256::zero()
     }
 
