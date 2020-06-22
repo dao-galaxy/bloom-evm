@@ -2,7 +2,6 @@ mod account_cmd;
 mod deposit_cmd;
 mod contract_cmd;
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 
@@ -12,19 +11,14 @@ use deposit_cmd::DepositCmd;
 use contract_cmd::ContractCmd;
 
 use ethereum_types::{U256, H160, H256};
-use evm::backend::MemoryBackend as Backend;
-use evm::backend::MemoryVicinity as Vicinity;
-use evm::backend::MemoryAccount as Account;
-use evm::executor::StackExecutor;
-use evm::Config;
 use bloom_state as state;
 use ethtrie;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use trie_db::TrieSpec;
-use trie_db::DBValue;
 use state::AccountFactory;
 use state::Factories;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
+use hex;
 
 
 
@@ -51,7 +45,7 @@ impl Subcommand {
 			block_gas_limit: U256::zero(),
 		};
 		let data_path = "test-db";
-		let mut config = DatabaseConfig::with_columns(state::COLUMN_COUNT);
+		let config = DatabaseConfig::with_columns(state::COLUMN_COUNT);
 		let database = Arc::new(Database::open(&config, data_path).unwrap());
 
 		let root =
@@ -69,9 +63,9 @@ impl Subcommand {
 		//println!("get root={:?}",root.clone());
 
 
-		let mut db = journaldb::new(database.clone(),journaldb::Algorithm::EarlyMerge,state::COL_STATE);
+		let db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
-		let trie_spec = TrieSpec::Generic;
+		let trie_spec = TrieSpec::default();
 
 		let gas_limit = 1000000u32;
 
@@ -111,6 +105,15 @@ impl Subcommand {
 			database.write(transaction).unwrap();
 			println!("set root={:?}",root.clone());
 
+		}
+
+		{
+			let db = database.clone();
+			for (k,v) in  db.iter(state::COL_STATE) {
+				let kk = hex::encode(k);
+				//println!("key={:?}",kk);
+				//println!("val={:?}",v);
+			}
 		}
 	}
 }

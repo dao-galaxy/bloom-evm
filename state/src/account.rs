@@ -186,9 +186,9 @@ impl Account {
     }
 
     pub fn get_storage(&self, db: &dyn HashDB<KeccakHasher, DBValue>, storage_root: H256) -> TrieResult<BTreeMap<H256,H256>> {
-        let db = SecTrieDB::new(&db, &storage_root)?;
+        let trie = SecTrieDB::new(&db, &storage_root)?;
         let mut pairs = BTreeMap::new();
-        let iter = db.iter().unwrap();
+        let iter = trie.iter().unwrap();
         for pair in iter {
             let (key, val) = pair.unwrap();
             let val = ::rlp::decode(&val).expect("decoding db val failed");

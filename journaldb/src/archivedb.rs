@@ -94,6 +94,7 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 	}
 
 	fn remove(&mut self, key: &H256, prefix: Prefix) {
+		//println!("jourdb remove key={:?}",key);
 		self.overlay.remove(key, prefix);
 	}
 }
@@ -156,17 +157,17 @@ impl JournalDB for ArchiveDB {
 
 				batch.put(self.column, key.as_bytes(), &value);
 				let k = hex::encode(key);
-				println!("insert key->{:?}",k);
+				// println!("insert key->{:?}",k);
 			}
-			if rc < 0 {
-				assert!(rc == -1);
-				if self.backing.get(self.column, key.as_bytes())?.is_none() {
-					return Err(error_negatively_reference_hash(&key));
-				}
-				batch.delete(self.column, key.as_bytes());
-				let k = hex::encode(key);
-				println!("delete key->{:?}",k);
-			}
+//			if rc < 0 {
+//				assert!(rc == -1);
+//				if self.backing.get(self.column, key.as_bytes())?.is_none() {
+//					return Err(error_negatively_reference_hash(&key));
+//				}
+//				batch.delete(self.column, key.as_bytes());
+//				let k = hex::encode(key);
+//				println!("delete key->{:?}",k);
+//			}
 		}
 
 		Ok(batch)

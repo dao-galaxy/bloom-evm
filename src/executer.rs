@@ -1,12 +1,8 @@
 use ethereum_types::{H160, U256};
 use evm::executor::StackExecutor;
-use evm::backend::Backend;
-use evm::backend::MemoryVicinity as Vicinity;
-use evm::backend::MemoryAccount as Account;
 use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
-use std::collections::BTreeMap;
 use bloom_state::State;
 
 #[derive(Debug)]

@@ -69,7 +69,6 @@ impl<'vicinity> State<'vicinity> {
     }
 
     pub fn get_account(&self,address: H160) -> Account {
-        println!("null root={:?}",KECCAK_NULL_RLP);
 
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
@@ -105,7 +104,7 @@ impl<'vicinity> State<'vicinity> {
     // get storage by address and storage root
     pub fn get_storage(&self, address: H160, storage_root: H256) -> BTreeMap<H256,H256> {
 
-        let account = Account::new_basic(U256::zero(), U256::zero());
+        let account = self.get_account(address.clone());
         let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), account.address_hash(&address));
         account.get_storage(accountdb.as_hash_db(), storage_root).unwrap()
     }
@@ -246,14 +245,13 @@ impl <'vicinity> Backend for State<'vicinity> {
             let code = match acc.storage_at(accountdb.as_hash_db(), &index) {
                 Ok(v) => v,
                 Err(e) => {
-                    println!("{:?}",e);
                     H256::zero()
                 },
             };
-            println!("1.storage get|address={:?}, index={:?},value={:?}",address,index,code.clone());
+            //println!("1.storage get|address={:?}, index={:?},value={:?}",address,index,code.clone());
             return code;
         }
-        println!("2.storage get| address={:?}, index={:?}, value={:?}",address,index,H256::zero());
+        //println!("2.storage get| address={:?}, index={:?}, value={:?}",address,index,H256::zero());
         H256::zero()
     }
 
@@ -290,7 +288,7 @@ impl<'vicinity> ApplyBackend for State <'vicinity> {
                             account.init_code(code);
                         }
                         for (index, value) in storage {
-                            println!("storage set|address={:?}, index={:?},value={:?}",address.clone(),index.clone(),value.clone());
+                            //println!("storage set|address={:?}, index={:?},value={:?}",address.clone(),index.clone(),value.clone());
                             account.set_storage(index,value);
                         }
 

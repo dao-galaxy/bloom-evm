@@ -1,12 +1,11 @@
 use structopt::StructOpt;
-use evm::backend::{Backend, ApplyBackend};
-use evm::backend::{MemoryBackend,Apply,Basic};
+use evm::backend::{ApplyBackend};
+use evm::backend::{Apply,Basic};
 use evm::executor::StackExecutor;
 use evm::Transfer;
 use evm::Config;
 use ethereum_types::{H160, H256, U256};
 use bloom_state::State;
-use std::fmt;
 use std::collections::BTreeMap;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 

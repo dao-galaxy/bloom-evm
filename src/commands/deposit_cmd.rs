@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use evm::backend::{Backend, ApplyBackend};
+use evm::backend::{ApplyBackend};
 use evm::executor::StackExecutor;
 use evm::Config;
 use bloom_state::State;

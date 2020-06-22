@@ -1,7 +1,5 @@
 use crate::executer;
-use crate::commands::account_cmd;
 use ethereum_types::{H160,U256};
-use evm::backend::{Backend, ApplyBackend};
 use evm::executor::StackExecutor;
 use evm::Handler;
 use evm::Context;
@@ -284,7 +282,6 @@ impl ContractCmd {
                     gas_limit as usize,
                     &config,
                 );
-                let nonce = Some(executor.nonce(from.clone()));
                 let context = Context {
                     caller: from.clone(),
                     address: to.clone(),
