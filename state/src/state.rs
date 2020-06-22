@@ -16,6 +16,7 @@ use hash_db::{HashDB,EMPTY_PREFIX};
 
 
 use std::collections::{HashSet, HashMap, BTreeMap};
+use kvdb::DBTransaction;
 
 
 pub struct State<'vicinity> {
@@ -110,8 +111,13 @@ impl<'vicinity> State<'vicinity> {
     }
 
     pub fn commit(&mut self) -> H256 {
-        let res = self.db.drain_transaction_overlay().unwrap();
-        self.db.backing().write(res);
+//        let res = self.db.drain_transaction_overlay().unwrap();
+//        self.db.backing().write(res);
+//        self.root.clone()
+        let mut batch = DBTransaction::new();
+        let id = H256::default();
+        self.db.journal_under(&mut batch,0,&id);
+        self.db.backing().write(batch);
         self.root.clone()
     }
 
@@ -130,6 +136,21 @@ impl<'vicinity> State<'vicinity> {
             }
         };
         ret
+    }
+
+    pub fn list_address(&self) -> Vec<Address> {
+        let db = &self.db.as_hash_db();
+        let db = self.factories.trie.readonly(db, &self.root).unwrap();
+        let mut address_vec = vec![];
+        let iter = db.iter().unwrap();
+        for pair in iter {
+            let (key, _val) = pair.unwrap();
+            if key.len() == 20 {
+                let addr = Address::from_slice(key.as_slice());
+                address_vec.push(addr);
+            }
+        }
+        address_vec
     }
 }
 

@@ -178,7 +178,7 @@ impl Account {
     }
 
     pub fn storage_at(&self, db: &dyn HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
-        let db = SecTrieDB::new(&db, &self.storage_root)?;
+        let db = TrieDB::new(&db, &self.storage_root)?;
         let decoder = |bytes: &[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
         let item: U256 = db.get_with(key.as_bytes(),decoder)?.unwrap_or_else(U256::zero);
         let value: H256 = BigEndianHash::from_uint(&item);
@@ -186,7 +186,7 @@ impl Account {
     }
 
     pub fn get_storage(&self, db: &dyn HashDB<KeccakHasher, DBValue>, storage_root: H256) -> TrieResult<BTreeMap<H256,H256>> {
-        let trie = SecTrieDB::new(&db, &storage_root)?;
+        let trie = TrieDB::new(&db, &storage_root)?;
         let mut pairs = BTreeMap::new();
         let iter = trie.iter().unwrap();
         for pair in iter {

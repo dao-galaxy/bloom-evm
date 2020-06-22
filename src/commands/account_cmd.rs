@@ -79,7 +79,10 @@ enum Command {
 		/// Value for transfer
 		#[structopt(long = "value")]
 		value: String,
-	}
+	},
+
+	/// List all the account
+	List{}
 }
 
 //#[derive(Debug)]
@@ -243,6 +246,18 @@ impl AccountCmd {
 					},
 					Err(err) => {
 						println!("Transfer failed: {:?}", err);
+					}
+				}
+			},
+
+			Command::List{} => {
+				let all_account = backend.list_address();
+				for a in all_account {
+					let account = backend.get_account(a.clone());
+					if account.is_contract() {
+						println!("{:?}, contract account",a);
+					}else {
+						println!("{:?}, external account",a);
 					}
 				}
 			}

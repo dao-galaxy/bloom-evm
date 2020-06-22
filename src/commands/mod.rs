@@ -65,7 +65,7 @@ impl Subcommand {
 
 		let db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
-		let trie_spec = TrieSpec::default();
+		let trie_spec = TrieSpec::Generic;
 
 		let gas_limit = 1000000u32;
 
@@ -103,7 +103,7 @@ impl Subcommand {
 			let mut transaction = database.transaction();
 			transaction.put(state::COL_BLOCK, b"root", root.as_bytes());
 			database.write(transaction).unwrap();
-			println!("set root={:?}",root.clone());
+			//println!("set root={:?}",root.clone());
 
 		}
 

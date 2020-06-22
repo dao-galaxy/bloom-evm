@@ -159,15 +159,13 @@ impl JournalDB for ArchiveDB {
 				let k = hex::encode(key);
 				// println!("insert key->{:?}",k);
 			}
-//			if rc < 0 {
-//				assert!(rc == -1);
-//				if self.backing.get(self.column, key.as_bytes())?.is_none() {
-//					return Err(error_negatively_reference_hash(&key));
-//				}
-//				batch.delete(self.column, key.as_bytes());
-//				let k = hex::encode(key);
-//				println!("delete key->{:?}",k);
-//			}
+			if rc < 0 {
+				assert!(rc == -1);
+				if self.backing.get(self.column, key.as_bytes())?.is_none() {
+					return Err(error_negatively_reference_hash(&key));
+				}
+				batch.delete(self.column, key.as_bytes());
+			}
 		}
 
 		Ok(batch)
