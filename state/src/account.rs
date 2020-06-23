@@ -237,7 +237,6 @@ impl fmt::Debug for Account {
             0 => {
                 f.debug_struct("External Account").field("balance",&self.balance)
                     .field("nonce",&self.nonce)
-                    .field("code_hash",&self.code_hash)
                     .finish()
             },
             _ => {
