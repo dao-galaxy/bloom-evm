@@ -127,7 +127,7 @@ enum Command {
 
 
 impl AccountCmd {
-	pub fn run(&self,backend: &mut State) {
+	pub fn run(&self,backend: &mut State) -> bool {
 		match &self.cmd {
 			Command::Query {address, storage_trie, code_hash} => {
 				let from = H160::from_str(address).expect("--address argument must be a valid address");
@@ -163,6 +163,7 @@ impl AccountCmd {
 
 					}
 				}
+				return false;
 			},
 
 			Command::Create {address,value,nonce} => {
@@ -186,6 +187,7 @@ impl AccountCmd {
 				backend.apply(applies,Vec::new(),false);
 				let account = backend.get_account(from);
 				println!("{}", account);
+				return true;
 			},
 
 			Command::Modify {address,value,nonce} => {
@@ -213,6 +215,7 @@ impl AccountCmd {
 				backend.apply(applies,Vec::new(),false);
 				let account = backend.get_account(from);
 				println!("{}", account);
+				return true;
 			},
 
 			Command::Transfer {from, to, value} => {
@@ -248,6 +251,7 @@ impl AccountCmd {
 						println!("Transfer failed: {:?}", err);
 					}
 				}
+				return true;
 			},
 
 			Command::List{} => {
@@ -260,6 +264,7 @@ impl AccountCmd {
 						println!("{:?}, external account",a);
 					}
 				}
+				return false;
 			}
 
 

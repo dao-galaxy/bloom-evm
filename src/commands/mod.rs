@@ -1,6 +1,7 @@
 mod account_cmd;
 mod deposit_cmd;
 mod contract_cmd;
+mod state_cmd;
 
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use structopt::StructOpt;
 use account_cmd::AccountCmd;
 use deposit_cmd::DepositCmd;
 use contract_cmd::ContractCmd;
+use state_cmd::StateCmd;
 
 use ethereum_types::{U256, H160, H256};
 use bloom_state as state;
@@ -22,13 +24,12 @@ use hex;
 
 
 
-
-
 #[derive(Debug, Clone, StructOpt)]
 pub enum Subcommand {
 	Account(AccountCmd),
 	Deposit(DepositCmd),
 	Contract(ContractCmd),
+	State(StateCmd),
 }
 
 impl Subcommand {
@@ -48,10 +49,22 @@ impl Subcommand {
 		let config = DatabaseConfig::with_columns(state::COLUMN_COUNT);
 		let database = Arc::new(Database::open(&config, data_path).unwrap());
 
+		let count =
+		{
+			let default_ = [0u8;32].to_vec();
+			let v =  database.get(state::COL_BLOCK,b"root-count");
+
+			let count = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
+			U256::from(count.as_slice())
+		};
+
 		let root =
 		{
 			let default_ = [0u8;32].to_vec();
-			let v =  database.get(state::COL_BLOCK,b"root");
+
+			let mut arr = [0u8;32];
+			count.to_big_endian(&mut arr);
+			let v =  database.get(state::COL_BLOCK,&arr[..]);
 
 			let root = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
 			root.clone()
@@ -86,30 +99,39 @@ impl Subcommand {
 			}
 		};
 
-		match self {
+		let is_commit = match self {
 			Subcommand::Account(cmd) => {
-				cmd.run(&mut backend);
+				cmd.run(&mut backend)
 			}
 			Subcommand::Deposit(cmd) => {
-				cmd.run(&mut backend);
+				cmd.run(&mut backend)
 			}
 			Subcommand::Contract(cmd) => {
-				cmd.run(&mut backend);
+				cmd.run(&mut backend)
 			}
-		}
+			Subcommand::State(cmd) => {
+				cmd.run(database.clone(),count.clone())
+			}
+		};
 
-		let root = backend.commit();
-		{
+		if is_commit {
+			let root = backend.commit();
+			let v = count.as_u64();
+			let v = v + 1;
+			let new_count = U256::from(v);
+			let mut arr = [0u8;32];
+			new_count.to_big_endian(&mut arr);
+
 			let mut transaction = database.transaction();
-			transaction.put(state::COL_BLOCK, b"root", root.as_bytes());
+			transaction.put(state::COL_BLOCK, b"root-count", &arr[..]);
+			transaction.put(state::COL_BLOCK, &arr[..],root.as_bytes());
 			database.write(transaction).unwrap();
-			//println!("set root={:?}",root.clone());
-
+			println!("set root={:?}",root.clone());
 		}
 
 		{
 			let db = database.clone();
-			for (k,v) in  db.iter(state::COL_STATE) {
+			for (k,v) in  db.iter(state::COL_BLOCK) {
 				let kk = hex::encode(k);
 				//println!("key={:?}",kk);
 				//println!("val={:?}",v);

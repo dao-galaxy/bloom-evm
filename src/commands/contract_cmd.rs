@@ -121,7 +121,7 @@ enum Command {
 
 
 impl ContractCmd {
-    pub fn run(&self, backend: &mut State) {
+    pub fn run(&self, backend: &mut State) -> bool{
         match &self.cmd {
             Command::Deploy {from,value,gas,gas_price,code,code_file} => {
 
@@ -183,6 +183,7 @@ impl ContractCmd {
                 ).expect("Create contract failed");
 
                 println!("Create contract successful, contract address is {:?}", contract_address);
+                return true;
             }
 
             Command::Transaction {from,value,to,gas,gas_price,data,data_file} => {
@@ -242,6 +243,7 @@ impl ContractCmd {
                 ).expect("Call message failed");
 
                 println!("Contract Called, State OK.");
+                return true;
             }
 
             Command::Call {from,value,to,gas,gas_price,data,data_file} => {
@@ -317,7 +319,7 @@ impl ContractCmd {
                     },
                 };
 
-
+                return false;
             }
         }
     }

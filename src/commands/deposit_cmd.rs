@@ -16,7 +16,7 @@ pub struct DepositCmd {
 
 
 impl DepositCmd {
-	pub fn run(&self, backend: &mut State) {
+	pub fn run(&self, backend: &mut State) -> bool {
 		let from = self.from.parse().expect("From should be a valid address");
 		let value: u128 = self.value.parse().expect("Value is invalid");
 
@@ -30,5 +30,6 @@ impl DepositCmd {
 		executor.deposit(from, value.into());
 		let (values, logs) = executor.deconstruct();
 		backend.apply(values, logs, true);
+		true
 	}
 }
