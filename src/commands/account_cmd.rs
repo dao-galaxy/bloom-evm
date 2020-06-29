@@ -2,12 +2,13 @@ use structopt::StructOpt;
 use evm::backend::{ApplyBackend};
 use evm::backend::{Apply,Basic};
 use evm::executor::StackExecutor;
-use evm::Transfer;
 use evm::Config;
 use ethereum_types::{H160, H256, U256};
 use bloom_state::State;
 use std::collections::BTreeMap;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
+
+use crate::executer;
 
 // target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
@@ -79,6 +80,10 @@ enum Command {
 		/// Value for transfer
 		#[structopt(long = "value")]
 		value: String,
+
+		/// The gas price (Wei) for messageCall
+		#[structopt(long = "gas-price")]
+		gas_price: String,
 	},
 
 	/// List all the account
@@ -218,29 +223,16 @@ impl AccountCmd {
 				return true;
 			},
 
-			Command::Transfer {from, to, value} => {
+			Command::Transfer {from, to, value, gas_price} => {
 
 				let from = H160::from_str(from).expect("--from argument must be a valid address");
 				let to  = H160::from_str(to).expect("--to argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
+				let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
+				let gas_limit = 25000;
 
-				let config = Config::istanbul();
-				let gas_limit = 100000;
-				let mut executor = StackExecutor::new(
-					backend,
-					gas_limit as usize,
-					&config,
-				);
-
-				match executor.transfer(Transfer{
-					source:from,
-					target:to,
-					value,
-				}) {
+				match executer::execute_transfer(from,to,value,gas_limit,gas_price,backend){
 					Ok(_) => {
-						let (values, logs) = executor.deconstruct();
-						backend.apply(values, logs, true);
-
 						let account = backend.get_account(from);
 						println!("{}", account);
 

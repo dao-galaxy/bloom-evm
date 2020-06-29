@@ -3,6 +3,7 @@ use evm::executor::StackExecutor;
 use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
+use evm::Transfer;
 use bloom_state::State;
 
 #[derive(Debug)]
@@ -116,4 +117,42 @@ pub fn execute_evm<F, R>(
 	//println!("{:?}", &backend);
 
 	ret
+}
+
+/// Execute an transfer operation.
+pub fn execute_transfer(
+	from: H160,
+	to: H160,
+	value: U256,
+	gas_limit: u32,
+	gas_price: U256,
+	backend: & mut State
+) -> Result<(), Error>
+{
+	assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
+
+	let config = Config::istanbul();
+	let mut executor = StackExecutor::new(
+		backend,
+		gas_limit as usize,
+		&config,
+	);
+
+	let total_fee = gas_price.checked_mul(U256::from(gas_limit)).ok_or(Error::FeeOverflow)?;
+	let total_payment = value.checked_add(total_fee).ok_or(Error::PaymentOverflow)?;
+	let state_account = executor.account_mut(from.clone());
+	assert!(state_account.basic.balance >= total_payment, Error::BalanceLow);
+	state_account.basic.nonce += U256::one();
+
+	executor.withdraw(from.clone(), total_fee).map_err(|_| Error::WithdrawFailed)?;
+	executor.transfer(Transfer{
+		source: from,
+		target: to,
+		value,
+	}).unwrap();
+
+	let (values, logs) = executor.deconstruct();
+	backend.apply(values, logs, true);
+
+	Ok(())
 }
