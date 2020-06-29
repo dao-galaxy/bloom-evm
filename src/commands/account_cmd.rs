@@ -81,9 +81,17 @@ enum Command {
 		#[structopt(long = "value")]
 		value: String,
 
+		/// The gas limit for messageCall
+		#[structopt(long = "gas")]
+		gas: u32,
+
 		/// The gas price (Wei) for messageCall
 		#[structopt(long = "gas-price")]
 		gas_price: String,
+
+		/// The input data for messageCall
+		#[structopt(long = "data")]
+		data: Option<String>,
 	},
 
 	/// List all the account
@@ -223,26 +231,44 @@ impl AccountCmd {
 				return true;
 			},
 
-			Command::Transfer {from, to, value, gas_price} => {
+			Command::Transfer {from, to, value, gas, gas_price,data} => {
 
 				let from = H160::from_str(from).expect("--from argument must be a valid address");
 				let to  = H160::from_str(to).expect("--to argument must be a valid address");
 				let value = U256::from_dec_str(value.as_str()).expect("--value argument must be a valid number");
 				let gas_price = U256::from_dec_str(gas_price.as_str()).expect("Gas price is invalid");
-				let gas_limit = 25000;
+				let gas_limit = *gas;
 
-				match executer::execute_transfer(from,to,value,gas_limit,gas_price,backend){
-					Ok(_) => {
-						let account = backend.get_account(from);
-						println!("{}", account);
 
-						let account = backend.get_account(to);
-						println!("{}", account);
-					},
-					Err(err) => {
-						println!("Transfer failed: {:?}", err);
-					}
-				}
+
+				let input = data.as_ref().map_or(vec![], |d| hex::decode(d.as_str()).expect("Input is invalid"));
+
+				let config = Config::istanbul();
+				let executor = StackExecutor::new(
+					backend,
+					gas_limit as usize,
+					&config,
+				);
+				let nonce = Some(executor.nonce(from.clone()));
+
+				let retv = executer::execute_evm(
+					from.clone(),
+					value,
+					gas_limit,
+					gas_price,
+					nonce,
+					|executor| ((), executor.transact_call(
+						from,
+						to,
+						value,
+						input,
+						gas_limit as usize,
+					)),
+					backend
+				).expect("Transfer failed");
+
+				println!("Transfer Called, State OK.");
+
 				return true;
 			},
 
