@@ -1,12 +1,10 @@
 use ethereum_types::{H160, U256};
 use evm::executor::StackExecutor;
-use evm::backend::MemoryBackend as Backend;
-use evm::backend::MemoryVicinity as Vicinity;
-use evm::backend::MemoryAccount as Account;
 use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
-use std::collections::BTreeMap;
+use evm::Transfer;
+use bloom_state::State;
 
 #[derive(Debug)]
 pub enum Error
@@ -58,29 +56,31 @@ pub enum Error
 
 /// Execute an EVM operation.
 pub fn execute_evm<F, R>(
-	backend:&mut Backend,
 	source: H160,
 	value: U256,
 	gas_limit: u32,
 	gas_price: U256,
 	nonce: Option<U256>,
 	f: F,
+	backend: & mut State
 ) -> Result<R, Error> where
-	F: FnOnce(&mut StackExecutor<Backend>) -> (R, ExitReason),
+	F: FnOnce(&mut StackExecutor<State>) -> (R, ExitReason),
 {
 	assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
 
-	let vicinity = Vicinity {
-		gas_price: U256::zero(),
-		origin: H160::zero(),
-		chain_id: U256::zero(),
-		block_hashes: Vec::new(),
-		block_number: U256::zero(),
-		block_coinbase: H160::zero(),
-		block_timestamp: U256::zero(),
-		block_difficulty: U256::zero(),
-		block_gas_limit: U256::zero(),
-	};
+
+//	let vicinity = Vicinity {
+//		gas_price: U256::zero(),
+//		origin: H160::zero(),
+//		chain_id: U256::zero(),
+//		block_hashes: Vec::new(),
+//		block_number: U256::zero(),
+//		block_coinbase: H160::zero(),
+//		block_timestamp: U256::zero(),
+//		block_difficulty: U256::zero(),
+//		block_gas_limit: U256::zero(),
+//	};
+
 //	let state = BTreeMap::<H160, Account>::new();
 //	let mut backend = Backend::new(&vicinity, state);
 	let config = Config::istanbul();
@@ -122,4 +122,42 @@ pub fn execute_evm<F, R>(
 	//println!("{:?}", &backend);
 
 	ret
+}
+
+/// Execute an transfer operation.
+pub fn execute_transfer(
+	from: H160,
+	to: H160,
+	value: U256,
+	gas_limit: u32,
+	gas_price: U256,
+	backend: & mut State
+) -> Result<(), Error>
+{
+	assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
+
+	let config = Config::istanbul();
+	let mut executor = StackExecutor::new(
+		backend,
+		gas_limit as usize,
+		&config,
+	);
+
+	let total_fee = gas_price.checked_mul(U256::from(gas_limit)).ok_or(Error::FeeOverflow)?;
+	let total_payment = value.checked_add(total_fee).ok_or(Error::PaymentOverflow)?;
+	let state_account = executor.account_mut(from.clone());
+	assert!(state_account.basic.balance >= total_payment, Error::BalanceLow);
+	state_account.basic.nonce += U256::one();
+
+	executor.withdraw(from.clone(), total_fee).map_err(|_| Error::WithdrawFailed)?;
+	executor.transfer(Transfer{
+		source: from,
+		target: to,
+		value,
+	}).unwrap();
+
+	let (values, logs) = executor.deconstruct();
+	backend.apply(values, logs, true);
+
+	Ok(())
 }
