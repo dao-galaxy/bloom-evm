@@ -1,4 +1,4 @@
-use crate::executer;
+use evm_executer;
 use ethereum_types::{H160,U256};
 use evm::executor::StackExecutor;
 use evm::Handler;
@@ -163,7 +163,7 @@ impl ContractCmd {
                 );
                 let nonce = Some(executor.nonce(from.clone()));
 
-                let contract_address = executer::execute_evm(
+                let contract_address = evm_executer::execute_evm(
                     from.clone(),
                     value,
                     gas_limit,
@@ -226,7 +226,7 @@ impl ContractCmd {
                 );
                 let nonce = Some(executor.nonce(from.clone()));
 
-                let retv = executer::execute_evm(
+                let retv = evm_executer::execute_evm(
                     from.clone(),
                     value,
                     gas_limit,

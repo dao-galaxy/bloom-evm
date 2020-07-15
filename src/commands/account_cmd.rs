@@ -8,7 +8,7 @@ use bloom_state::State;
 use std::collections::BTreeMap;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 
-use crate::executer;
+use evm_executer;
 
 // target/debug/bloom-evm account create --address 59a5208b32e627891c389ebafc644145224006e8 --value 10 --nonce 12
 // target/debug/bloom-evm account query --address 59a5208b32e627891c389ebafc644145224006e8
@@ -249,7 +249,7 @@ impl AccountCmd {
 				);
 				let nonce = Some(executor.nonce(from.clone()));
 
-				let retv = executer::execute_evm(
+				let retv = evm_executer::execute_evm(
 					from.clone(),
 					value,
 					gas_limit,

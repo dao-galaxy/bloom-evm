@@ -1,4 +1,3 @@
-mod executer;
 mod commands;
 
 use commands::Subcommand;
