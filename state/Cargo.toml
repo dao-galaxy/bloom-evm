@@ -10,7 +10,7 @@ edition = "2018"
 ethereum-types = "0.9.2"
 trie-db = "0.18.0"
 memory-db = "0.21.0"
-kvdb-rocksdb = "0.8.0"
+kvdb-rocksdb = "0.7.0"
 hash-db = "0.15.2"
 keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
 rlp = "0.4.4"
@@ -21,6 +21,6 @@ journaldb = { path = "../journaldb" }
 evm = "0.16"
 keccak-hash = "0.5.0"
 parity-bytes = "0.1"
-kvdb = "0.6.0"
+kvdb = "0.5.0"
 
 
