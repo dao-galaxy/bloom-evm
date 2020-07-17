@@ -121,6 +121,10 @@ impl<'vicinity> State<'vicinity> {
         self.root.clone()
     }
 
+    pub fn root(&self) -> H256 {
+        self.root.clone()
+    }
+
     pub fn storage_root(&self,address: H160) -> H256 {
         let db = &self.db.as_hash_db();
         let db_ret = self.factories.trie.readonly(db, &self.root);

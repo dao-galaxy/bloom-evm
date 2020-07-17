@@ -5,6 +5,8 @@ use ethereum_types::{U256,H256};
 
 use std::sync::Arc;
 
+use bloom_db;
+
 
 #[derive(Debug, StructOpt, Clone)]
 pub struct StateCmd {
@@ -33,7 +35,7 @@ impl StateCmd {
 
                     let mut arr = [0u8;32];
                     key.to_big_endian(&mut arr);
-                    let v =  db.get(state::COL_BLOCK,&arr[..]);
+                    let v =  db.get(bloom_db::COL_BLOCK,&arr[..]);
 
                     let root = v.unwrap().unwrap();
                     let root = H256::from_slice(root.as_slice());

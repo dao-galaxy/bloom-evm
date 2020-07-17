@@ -23,4 +23,6 @@ keccak-hash = "0.5.0"
 parity-bytes = "0.1"
 kvdb = "0.5.0"
 
+bloom-db = {path = "../db"}
+
 

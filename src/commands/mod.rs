@@ -22,6 +22,8 @@ use state::Factories;
 use std::str::FromStr; // !!! Necessary for H160::from_str(address).expect("...");
 use hex;
 
+use bloom_db;
+
 
 
 #[derive(Debug, Clone, StructOpt)]
@@ -46,13 +48,13 @@ impl Subcommand {
 			block_gas_limit: U256::zero(),
 		};
 		let data_path = "test-db";
-		let config = DatabaseConfig::with_columns(state::COLUMN_COUNT);
+		let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
 		let database = Arc::new(Database::open(&config, data_path).unwrap());
 
 		let count =
 			{
 				let default_ = [0u8;32].to_vec();
-				let v =  database.get(state::COL_BLOCK,b"root-count");
+				let v =  database.get(bloom_db::COL_BLOCK,b"root-count");
 
 				let count = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
 				U256::from(count.as_slice())
@@ -64,7 +66,7 @@ impl Subcommand {
 
 				let mut arr = [0u8;32];
 				count.to_big_endian(&mut arr);
-				let v =  database.get(state::COL_BLOCK,&arr[..]);
+				let v =  database.get(bloom_db::COL_BLOCK,&arr[..]);
 
 				let root = v.unwrap_or(Some(default_.clone())).unwrap_or(default_.clone());
 				root.clone()
@@ -76,7 +78,7 @@ impl Subcommand {
 		//println!("get root={:?}",root.clone());
 
 
-		let db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,state::COL_STATE);
+		let db = journaldb::new(database.clone(),journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 		let trie_layout = ethtrie::Layout::default();
 		let trie_spec = TrieSpec::Generic;
 
@@ -123,15 +125,15 @@ impl Subcommand {
 			new_count.to_big_endian(&mut arr);
 
 			let mut transaction = database.transaction();
-			transaction.put(state::COL_BLOCK, b"root-count", &arr[..]);
-			transaction.put(state::COL_BLOCK, &arr[..],root.as_bytes());
+			transaction.put(bloom_db::COL_BLOCK, b"root-count", &arr[..]);
+			transaction.put(bloom_db::COL_BLOCK, &arr[..],root.as_bytes());
 			database.write(transaction).unwrap();
 			println!("set root={:?}",root.clone());
 		}
 
 		{
 			let db = database.clone();
-			for (k,v) in  db.iter(state::COL_BLOCK) {
+			for (k,v) in  db.iter(bloom_db::COL_BLOCK) {
 				let kk = hex::encode(k);
 				//println!("key={:?}",kk);
 				//println!("val={:?}",v);

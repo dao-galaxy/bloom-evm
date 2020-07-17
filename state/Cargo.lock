@@ -101,9 +101,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloom-db"
+version = "0.1.0"
+
+[[package]]
 name = "bloom-state"
 version = "0.1.0"
 dependencies = [
+ "bloom-db 0.1.0",
  "ethereum-types 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "evm 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash-db 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",

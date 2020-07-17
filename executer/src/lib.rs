@@ -1,11 +1,15 @@
 
-use ethereum_types::{H160, U256};
+use ethereum_types::{H160, U256, H256};
 use evm::executor::StackExecutor;
 use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
 use evm::Transfer;
-use bloom_state::State;
+use bloom_state::{State,BackendVicinity,Factories};
+use common_types::header::Header;
+use common_types::transaction::SignedTransaction;
+use journaldb::JournalDB;
+
 
 #[derive(Debug)]
 pub enum Error
@@ -69,21 +73,6 @@ pub fn execute_evm<F, R>(
 {
     assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
 
-
-//	let vicinity = Vicinity {
-//		gas_price: U256::zero(),
-//		origin: H160::zero(),
-//		chain_id: U256::zero(),
-//		block_hashes: Vec::new(),
-//		block_number: U256::zero(),
-//		block_coinbase: H160::zero(),
-//		block_timestamp: U256::zero(),
-//		block_difficulty: U256::zero(),
-//		block_gas_limit: U256::zero(),
-//	};
-
-//	let state = BTreeMap::<H160, Account>::new();
-//	let mut backend = Backend::new(&vicinity, state);
     let config = Config::istanbul();
     let mut executor = StackExecutor::new(
         backend,
@@ -162,3 +151,41 @@ pub fn execute_transfer(
 
     Ok(())
 }
+
+fn apply_block(block_header: &Header,
+               transactions: &Vec<SignedTransaction>,
+               db: Box<dyn JournalDB>,
+               factories: Factories,
+               is_commit: bool ) {
+
+    // todo get parent block state root
+    let mut root = H256::default();
+
+    for tx in transactions{
+
+        let vicinity = BackendVicinity {
+            gas_price: tx.gas_price,
+            origin: tx.sender(),
+            chain_id: U256::zero(),
+            block_hashes: Vec::new(),
+            block_number: U256::zero(),
+            block_coinbase: H160::zero(),
+            block_timestamp: U256::zero(),
+            block_difficulty: U256::zero(),
+            block_gas_limit: U256::zero(),
+        };
+
+        let mut backend = match root == H256::zero() {
+            true => {
+                State::new(&vicinity,db.boxed_clone(),factories.clone())
+            },
+            false => {
+                State::from_existing(root,&vicinity,db.boxed_clone(),factories.clone()).unwrap()
+            }
+        };
+
+
+    }
+
+}
+
