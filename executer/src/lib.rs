@@ -5,10 +5,15 @@ use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
 use evm::Transfer;
-use bloom_state::{State,BackendVicinity,Factories};
+use bloom_state::{State,BackendVicinity,Factories,AccountFactory};
 use common_types::header::Header;
 use common_types::transaction::SignedTransaction;
 use journaldb::JournalDB;
+use trie_db::TrieSpec;
+use ethtrie;
+use std::sync::Arc;
+use blockchain::BlockChain;
+use bloom_db;
 
 
 #[derive(Debug)]
@@ -154,12 +159,27 @@ pub fn execute_transfer(
 
 fn apply_block(block_header: &Header,
                transactions: &Vec<SignedTransaction>,
-               db: Box<dyn JournalDB>,
-               factories: Factories,
+               db: Arc<dyn (::kvdb::KeyValueDB)>,
                is_commit: bool ) {
 
+
+    let trie_layout = ethtrie::Layout::default();
+    let trie_spec = TrieSpec::default();
+    let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
+
+    let account_factory = AccountFactory::default();
+    let factories = Factories{
+        trie: trie_factory,
+        accountdb: account_factory,
+    };
+
+    let bc = BlockChain::new(db.clone());
+    let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
+
+
     // todo get parent block state root
-    let mut root = H256::default();
+    let best_header = bc.best_block_header();
+    let root = best_header.state_root();
 
     for tx in transactions{
 
@@ -168,23 +188,100 @@ fn apply_block(block_header: &Header,
             origin: tx.sender(),
             chain_id: U256::zero(),
             block_hashes: Vec::new(),
-            block_number: U256::zero(),
-            block_coinbase: H160::zero(),
-            block_timestamp: U256::zero(),
-            block_difficulty: U256::zero(),
-            block_gas_limit: U256::zero(),
+            block_number: U256::from(best_header.number()),
+            block_coinbase: best_header.author(),
+            block_timestamp: U256::from(best_header.timestamp()),
+            block_difficulty: best_header.difficulty(),
+            block_gas_limit: best_header.gas_limit(),
         };
 
         let mut backend = match root == H256::zero() {
             true => {
-                State::new(&vicinity,db.boxed_clone(),factories.clone())
+                State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
             },
             false => {
-                State::from_existing(root,&vicinity,db.boxed_clone(),factories.clone()).unwrap()
+                State::from_existing(root,&vicinity,journal_db.boxed_clone(),factories.clone()).unwrap()
             }
         };
 
 
+
+        let from = tx.sender();
+        let to = tx.receiver();
+        let value = tx.value;
+        let gas_limit = tx.gas.as_u32();
+        let gas_price = tx.gas_price;
+        let nonce = Some(tx.nonce);
+
+        let config = Config::istanbul();
+        let executor = StackExecutor::new(
+            &mut backend,
+            gas_limit as usize,
+            &config,
+        );
+
+        match to {
+            None => {
+                let contract_address = execute_evm(
+                    from.clone(),
+                    value,
+                    gas_limit,
+                    gas_price,
+                    nonce,
+                    |executor| {
+                        (executor.create_address(
+                            evm::CreateScheme::Legacy { caller: from.clone() },
+                        ), executor.transact_create(
+                            from,
+                            value,
+                            tx.data.clone(),
+                            gas_limit as usize,
+                        ))
+                    },
+                    &mut backend
+                ).expect("Create contract failed");
+            },
+
+            Some(contract_address) => {
+                let retv = execute_evm(
+                    from,
+                    value,
+                    gas_limit,
+                    gas_price,
+                    nonce,
+                    |executor| ((), executor.transact_call(
+                        from,
+                        contract_address,
+                        value,
+                        tx.data.clone(),
+                        gas_limit as usize,
+                    )),
+                    &mut backend
+                ).expect("Call message failed");
+            }
+        }
+
+    }
+
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use bloom_db;
+    use std::sync::Arc;
+    use super::*;
+    use common_types::header::Header;
+    use ethereum_types::{Address, H256, U256};
+    use std::str::FromStr;
+
+    #[test]
+    fn apply_block_test() {
+        let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
+        let bc = BlockChain::new(memory_db.clone());
+        let header = Header::genesis();
+        apply_block(&header,&vec![],memory_db.clone(),false);
     }
 
 }

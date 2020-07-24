@@ -13,4 +13,15 @@ evm = "0.16"
 common-types = { git = "https://github.com/recursive-bloom/common-types", branch = "master"}
 
 journaldb = { path = "../journaldb" }
+kvdb = "0.5.0"
+blockchain = {path = "../blockchain", package = "bloom-blockchain"}
+bloom-db = {path = "../db"}
+ethtrie = {package = "patricia-trie-ethereum", path = "../patricia-trie-ethereum"}
+trie-db = "0.18.0"
 
+
+[dev-dependencies]
+kvdb-memorydb = "0.5.0"
+
+[build-dependencies.cc]
+version = ">= 1.0.28, <= 1.0.41"

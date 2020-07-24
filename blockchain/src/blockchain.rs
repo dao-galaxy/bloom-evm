@@ -87,7 +87,7 @@ impl BlockChain {
     pub fn insert_block(&mut self,block: Block) -> Result<(),&str> {
         let best_hash = self.best_block_hash();
         let parent_hash = block.header.parent_hash();
-        if best_hash != *parent_hash {
+        if best_hash != parent_hash {
             return Err("not right block");
         }
 
@@ -124,7 +124,7 @@ impl BlockChain {
 
     /// Get best block total difficulty.
     pub fn best_block_difficulty(&self) -> U256 {
-        *self.best_block.read().header.difficulty()
+        self.best_block.read().header.difficulty()
     }
 
 }

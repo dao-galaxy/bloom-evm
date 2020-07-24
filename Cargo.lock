@@ -192,6 +192,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloom-blockchain"
+version = "0.1.0"
+dependencies = [
+ "bloom-db",
+ "common-types",
+ "ethereum-types",
+ "journaldb",
+ "kvdb",
+ "parking_lot",
+]
+
+[[package]]
 name = "bloom-db"
 version = "0.1.0"
 dependencies = [
@@ -555,11 +567,17 @@ dependencies = [
 name = "executer"
 version = "0.1.0"
 dependencies = [
+ "bloom-blockchain",
+ "bloom-db",
  "bloom-state",
+ "cc",
  "common-types",
  "ethereum-types",
  "evm",
  "journaldb",
+ "kvdb",
+ "patricia-trie-ethereum",
+ "trie-db",
 ]
 
 [[package]]
