@@ -1,19 +1,29 @@
 
-use ethereum_types::{H160, U256, H256};
+use ethereum_types::{H160, U256, H256,Address};
 use evm::executor::StackExecutor;
 use evm::ExitReason;
 use evm::backend::ApplyBackend;
 use evm::Config;
 use evm::Transfer;
 use bloom_state::{State,BackendVicinity,Factories,AccountFactory};
-use common_types::header::Header;
-use common_types::transaction::SignedTransaction;
+use common_types::{
+    BlockNumber,
+    header::Header,
+    block::Block,
+    transaction::SignedTransaction,
+    transaction::UnverifiedTransaction
+};
 use journaldb::JournalDB;
 use trie_db::TrieSpec;
 use ethtrie;
 use std::sync::Arc;
 use blockchain::BlockChain;
 use bloom_db;
+use keccak_hash::KECCAK_NULL_RLP;
+use parity_bytes::Bytes;
+use rlp::Encodable;
+
+
 
 
 #[derive(Debug)]
@@ -114,8 +124,6 @@ pub fn execute_evm<F, R>(
 
     backend.apply(values, logs, true);
 
-    //println!("{:?}", &backend);
-
     ret
 }
 
@@ -157,10 +165,9 @@ pub fn execute_transfer(
     Ok(())
 }
 
-fn apply_block(block_header: &Header,
-               transactions: &Vec<SignedTransaction>,
-               db: Arc<dyn (::kvdb::KeyValueDB)>,
-               is_commit: bool ) {
+fn apply_block(header: Header,
+               transactions: Vec<SignedTransaction>,
+               db: Arc<dyn (::kvdb::KeyValueDB)>) {
 
 
     let trie_layout = ethtrie::Layout::default();
@@ -173,29 +180,28 @@ fn apply_block(block_header: &Header,
         accountdb: account_factory,
     };
 
-    let bc = BlockChain::new(db.clone());
+    let mut bc = BlockChain::new(db.clone());
     let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
 
-    // todo get parent block state root
     let best_header = bc.best_block_header();
-    let root = best_header.state_root();
+    let mut root = best_header.state_root();
 
-    for tx in transactions{
+    for tx in &transactions{
 
         let vicinity = BackendVicinity {
             gas_price: tx.gas_price,
             origin: tx.sender(),
             chain_id: U256::zero(),
             block_hashes: Vec::new(),
-            block_number: U256::from(best_header.number()),
-            block_coinbase: best_header.author(),
-            block_timestamp: U256::from(best_header.timestamp()),
-            block_difficulty: best_header.difficulty(),
-            block_gas_limit: best_header.gas_limit(),
+            block_number: U256::from(header.number()),
+            block_coinbase: header.author(),
+            block_timestamp: U256::from(header.timestamp()),
+            block_difficulty: header.difficulty(),
+            block_gas_limit: header.gas_limit(),
         };
 
-        let mut backend = match root == H256::zero() {
+        let mut backend = match root == KECCAK_NULL_RLP {
             true => {
                 State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
             },
@@ -203,7 +209,6 @@ fn apply_block(block_header: &Header,
                 State::from_existing(root,&vicinity,journal_db.boxed_clone(),factories.clone()).unwrap()
             }
         };
-
 
 
         let from = tx.sender();
@@ -261,8 +266,186 @@ fn apply_block(block_header: &Header,
             }
         }
 
+        root = backend.commit();
+
     }
 
+    let mut block = Block::default();
+    block.header = header.clone();
+    let mut txs: Vec<UnverifiedTransaction> = vec![];
+    for tx in transactions {
+        let utx = UnverifiedTransaction::from(tx);
+        txs.push(utx);
+    }
+    block.transactions = txs;
+    bc.insert_block(block).unwrap();
+}
+
+
+/// create header and not commit to state to disk
+pub fn create_header(
+    number: BlockNumber,
+    timestamp: u64,
+    author: Address,
+    extra_data: Bytes,
+    gas_used: U256,
+    gas_limit: U256,
+    difficulty: U256,
+    transactions: Vec<SignedTransaction>,
+    db: Arc<dyn (::kvdb::KeyValueDB)>
+) -> Header {
+
+    assert!(number > 0 , "Block number must be greater 0");
+    let trie_layout = ethtrie::Layout::default();
+    let trie_spec = TrieSpec::default();
+    let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
+
+    let account_factory = AccountFactory::default();
+    let factories = Factories{
+        trie: trie_factory,
+        accountdb: account_factory,
+    };
+
+    let mut bc = BlockChain::new(db.clone());
+    let mut journal_db = journaldb::new(db.clone(),journaldb::Algorithm::Archive,bloom_db::COL_STATE);
+
+
+    let parent_block_number = number - 1;
+    let parent_block = bc.block_by_number(parent_block_number).expect("Block body does not exist");
+    let parent_header = parent_block.header;
+    let mut root = parent_header.state_root();
+
+    let mut header = Header::default();
+    header.set_number(number);
+    header.set_timestamp(timestamp);
+    header.set_author(author);
+    header.set_extra_data(extra_data);
+    header.set_gas_limit(gas_limit);
+    header.set_difficulty(difficulty);
+    header.set_parent_hash(header.hash());
+
+    let mut total_gas_used = U256::zero();
+
+    for tx in &transactions{
+
+        let vicinity = BackendVicinity {
+            gas_price: tx.gas_price,
+            origin: tx.sender(),
+            chain_id: U256::zero(),
+            block_hashes: Vec::new(),
+            block_number: U256::from(header.number()),
+            block_coinbase: header.author(),
+            block_timestamp: U256::from(header.timestamp()),
+            block_difficulty: header.difficulty(),
+            block_gas_limit: header.gas_limit(),
+        };
+
+        let mut backend = match root == KECCAK_NULL_RLP {
+            true => {
+                State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
+            },
+            false => {
+                State::from_existing(root,&vicinity,journal_db.boxed_clone(),factories.clone()).unwrap()
+            }
+        };
+
+
+        let from = tx.sender();
+        let to = tx.receiver();
+        let value = tx.value;
+        let gas_limit = tx.gas.as_u32();
+        let gas_price = tx.gas_price;
+        let nonce = Some(tx.nonce);
+
+        let config = Config::istanbul();
+        let executor = StackExecutor::new(
+            &mut backend,
+            gas_limit as usize,
+            &config,
+        );
+
+        match to {
+            None => {
+                let (contract_address,gas_left) = execute_evm(
+                    from.clone(),
+                    value,
+                    gas_limit,
+                    gas_price,
+                    nonce,
+                    |executor| {
+
+                        let contract_addr = executor.create_address(
+                            evm::CreateScheme::Legacy { caller: from.clone()});
+
+                        let retv = executor.transact_create(
+                                from,
+                                value,
+                                tx.data.clone(),
+                            gas_limit as usize,
+                        );
+
+                        let gas_left = executor.gas();
+                        ((contract_addr,gas_left),retv)
+                    },
+                    &mut backend
+                ).expect("Create contract failed");
+                let gas_used = gas_limit - gas_left as u32;
+                total_gas_used = total_gas_used + U256::from(gas_used);
+            },
+
+            Some(contract_address) => {
+                let gas_left = execute_evm(
+                    from,
+                    value,
+                    gas_limit,
+                    gas_price,
+                    nonce,
+                    |executor| {
+
+                        let retv = executor.transact_call(
+                            from,
+                            contract_address,
+                            value,
+                            tx.data.clone(),
+                            gas_limit as usize,
+                        );
+
+                        let gas_left = executor.gas();
+
+                        (gas_left, retv)
+                    },
+                    &mut backend
+                ).expect("Call message failed");
+
+                let gas_used = gas_limit - gas_left as u32;
+                total_gas_used = total_gas_used + U256::from(gas_used);
+            }
+        }
+
+        root = backend.root();
+
+    }
+
+    header.set_gas_used(total_gas_used);
+    header.set_state_root(root);
+
+
+    // create tx trie
+    let mut tx_root = H256::default();
+    {
+        let mut jour_db = journaldb::new(db.clone(), journaldb::Algorithm::Archive, bloom_db::COL_TRANSACTION);
+        let mut tx_trie = factories.trie.create(jour_db.as_hash_db_mut(), &mut tx_root);
+
+        for tx in transactions {
+            let utx = UnverifiedTransaction::from(tx);
+            let tx_hash = utx.hash();
+            let tx_raw_data = utx.rlp_bytes();
+            tx_trie.insert(tx_hash.as_bytes(), tx_raw_data.as_slice()).unwrap();
+        }
+    }
+
+    header.set_transactions_root(tx_root);
+    header
 }
 
 
@@ -280,8 +463,26 @@ mod tests {
     fn apply_block_test() {
         let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
         let bc = BlockChain::new(memory_db.clone());
-        let header = Header::genesis();
-        apply_block(&header,&vec![],memory_db.clone(),false);
+        let mut header = Header::default();
+        let best_header = bc.best_block_header();
+        header.set_parent_hash(best_header.hash());
+        apply_block(header,vec![],memory_db.clone());
+    }
+
+    #[test]
+    fn create_header_test() {
+        let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
+        let number: BlockNumber = 1;
+        let ttimestamp: u64  = 1;
+        let author: Address = Address::default();
+        let extra_data: Bytes = vec![];
+        let gas_used: U256 = U256::zero();
+        let gas_limit: U256 = U256::zero();
+        let difficulty: U256 = U256::zero();
+        let transactions: Vec<SignedTransaction> = vec![];
+
+        let header = create_header(number,ttimestamp,author,extra_data,gas_used,gas_limit,difficulty,transactions,memory_db);
+        println!("{:?}",header);
     }
 
 }

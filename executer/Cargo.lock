@@ -541,9 +541,12 @@ dependencies = [
  "ethereum-types",
  "evm",
  "journaldb",
+ "keccak-hash",
  "kvdb",
  "kvdb-memorydb",
+ "parity-bytes",
  "patricia-trie-ethereum",
+ "rlp",
  "trie-db",
 ]
 

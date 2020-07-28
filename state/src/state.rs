@@ -1,18 +1,15 @@
 
-use ethtrie::{Result as TrieResult,Layout};
+use ethtrie::{Result as TrieResult};
 use journaldb::JournalDB;
 use ethereum_types::{Address, H256, U256, H160};
 use evm::backend::{Basic,Log,Backend,ApplyBackend,Apply};
 
 use crate::{BackendVicinity,Factories};
 use crate::account::Account;
-use trie_db::{Trie,TrieError,TrieLayout};
+use trie_db::{Trie,TrieError};
 use trie_db::NodeCodec;
-use hex;
-use keccak_hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
+use keccak_hash::{keccak, KECCAK_NULL_RLP};
 use parity_bytes::Bytes;
-use hash_db::{HashDB,EMPTY_PREFIX};
-
 
 
 use std::collections::{HashSet, HashMap, BTreeMap};
@@ -131,7 +128,7 @@ impl<'vicinity> State<'vicinity> {
         let ret = match db_ret {
             Ok(db) => {
                 let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-                let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
+                let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
                 let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
                 acc.storage_root()
             },

@@ -1,6 +1,5 @@
 
 use std::convert::AsRef;
-use std::hash::Hash;
 use kvdb::{DBTransaction, KeyValueDB};
 use rlp;
 
@@ -26,7 +25,7 @@ pub const COL_LIGHT_CHAIN: u32 = 7;
 /// Column for the private transactions state.
 pub const COL_PRIVATE_TRANSACTIONS_STATE: u32 = 8;
 /// Column for block
-pub const COL_BLOCK: u32 = 9;
+pub const COL_TRANSACTION: u32 = 9;
 /// Number of columns in DB
 pub const NUM_COLUMNS: u32 = 10;
 

@@ -2,15 +2,14 @@
 use std::cell::{Cell};
 use std::sync::Arc;
 use hash_db::HashDB;
-use ethereum_types::{Address, H256, U256, H160, BigEndianHash};
+use ethereum_types::{Address, H256, U256, BigEndianHash};
 use keccak_hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
-use parity_bytes::{Bytes, ToPretty};
+use parity_bytes::{Bytes};
 use rlp::{DecoderError, encode};
 use kvdb::DBValue;
-use ethtrie::{Result as TrieResult, SecTrieDB, TrieDB, TrieFactory};
-use trie_db::{Recorder, Trie};
+use ethtrie::{Result as TrieResult, TrieDB, TrieFactory};
+use trie_db::{Trie};
 use keccak_hasher::KeccakHasher;
-
 
 use std::fmt;
 use std::collections::{HashMap, BTreeMap};

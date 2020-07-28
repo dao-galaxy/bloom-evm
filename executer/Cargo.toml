@@ -18,6 +18,9 @@ blockchain = {path = "../blockchain", package = "bloom-blockchain"}
 bloom-db = {path = "../db"}
 ethtrie = {package = "patricia-trie-ethereum", path = "../patricia-trie-ethereum"}
 trie-db = "0.18.0"
+keccak-hash = "0.5.0"
+parity-bytes = "0.1"
+rlp = "0.4.4"
 
 
 [dev-dependencies]
