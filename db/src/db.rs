@@ -24,10 +24,12 @@ pub const COL_NODE_INFO: u32 = 6;
 pub const COL_LIGHT_CHAIN: u32 = 7;
 /// Column for the private transactions state.
 pub const COL_PRIVATE_TRANSACTIONS_STATE: u32 = 8;
-/// Column for block
+/// Column for trx
 pub const COL_TRANSACTION: u32 = 9;
+/// Column for block
+pub const COL_BLOCK: u32 = 10;
 /// Number of columns in DB
-pub const NUM_COLUMNS: u32 = 10;
+pub const NUM_COLUMNS: u32 = 11;
 
 
 
