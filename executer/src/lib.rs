@@ -17,13 +17,16 @@ use journaldb::JournalDB;
 use trie_db::TrieSpec;
 use ethtrie;
 use std::sync::Arc;
+use std::time::{SystemTime,UNIX_EPOCH};
 use blockchain::BlockChain;
 use bloom_db;
 use keccak_hash::KECCAK_NULL_RLP;
 use parity_bytes::Bytes;
 use rlp::Encodable;
 
-
+fn get_now_timestamp() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
 
 
 #[derive(Debug)]
@@ -48,31 +51,6 @@ pub enum Error
     /// Nonce is invalid
     InvalidNonce,
 }
-
-// /// Check whether an account is empty.
-// pub fn is_account_empty(address: &H160) -> bool {
-// 	let account = Account::get(address).expect("account not exists");
-// 	let account_code = AccountCode::get(address).expect("account code not exists");
-// 	let code_len = account_code.code().len();
-//
-// 	account.nonce == U256::zero() &&
-// 		account.balance == U256::zero() &&
-// 		code_len == 0
-// }
-//
-// /// Remove an account if its empty.
-// pub fn remove_account_if_empty(address: &H160) {
-// 	if is_account_empty(address) {
-// 		remove_account(address);
-// 	}
-// }
-//
-// /// Remove an account from state.
-// fn remove_account(address: &H160) {
-// 	Account::remove(address);
-// 	AccountCode::remove(address);
-// 	// AccountStorages::remove_prefix(address);
-// }
 
 /// Execute an EVM operation.
 pub fn execute_evm<F, R>(
@@ -165,6 +143,13 @@ pub fn execute_transfer(
     Ok(())
 }
 
+#[derive(Debug)]
+pub enum ExecError
+{
+    /// Block hash not exist
+    BlockHashNotExist,
+}
+
 fn apply_block(header: Header,
                transactions: Vec<SignedTransaction>,
                db: Arc<dyn (::kvdb::KeyValueDB)>) {
@@ -201,18 +186,15 @@ fn apply_block(header: Header,
 
 /// create header and not commit to state to disk
 pub fn create_header(
-    number: BlockNumber,
-    timestamp: u64,
+    parent_block_hash: H256,
     author: Address,
     extra_data: Bytes,
-    gas_used: U256,
     gas_limit: U256,
     difficulty: U256,
     transactions: Vec<SignedTransaction>,
     db: Arc<dyn (kvdb::KeyValueDB)>
-) -> Header {
+) -> Result<Header,ExecError> {
 
-    assert!(number > 0 , "Block number must be greater 0");
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::default();
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
@@ -226,31 +208,38 @@ pub fn create_header(
     let mut bc = BlockChain::new(db.clone());
     let mut journal_db = journaldb::new(db.clone(),journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
-    let parent_block_number = number - 1;
-    let parent_block = bc.block_by_number(parent_block_number).expect("Block body does not exist");
-    let parent_header = parent_block.header;
-    let mut root = parent_header.state_root();
+    let parent_block = bc.block_by_hash(parent_block_hash);
+    match parent_block  {
+        None => {
+            Err(ExecError::BlockHashNotExist)
+        },
 
-    let mut header = Header::default();
-    header.set_number(number);
-    header.set_timestamp(timestamp);
-    header.set_author(author);
-    header.set_extra_data(extra_data);
-    header.set_gas_limit(gas_limit);
-    header.set_difficulty(difficulty);
-    header.set_parent_hash(header.hash());
-    let (total_gas_used, new_state_trie_root) = execute_transaction(
-        false,
-        &mut header,
-        root,
-        &transactions,
-        &factories,
-        journal_db
-    );
-    header.set_gas_used(total_gas_used);
-    header.set_state_root(new_state_trie_root);
-    header.set_transactions_root(build_transaction_trie(transactions, &db, &factories));
-    header
+        Some(block) => {
+            let parent_header = block.header;
+            let mut root = parent_header.state_root();
+
+            let mut header = Header::default();
+            header.set_number(header.number() + 1);
+            header.set_timestamp(get_now_timestamp());
+            header.set_author(author);
+            header.set_extra_data(extra_data);
+            header.set_gas_limit(gas_limit);
+            header.set_difficulty(difficulty);
+            header.set_parent_hash(header.hash());
+            let (total_gas_used, new_state_trie_root) = execute_transaction(
+                false,
+                &mut header,
+                root,
+                &transactions,
+                &factories,
+                journal_db
+            );
+            header.set_gas_used(total_gas_used);
+            header.set_state_root(new_state_trie_root);
+            header.set_transactions_root(build_transaction_trie(transactions, &db, &factories));
+            Ok(header)
+        }
+    }
 }
 
 pub fn execute_transaction(
@@ -393,6 +382,7 @@ mod tests {
     use ethereum_types::{Address, H256, U256};
     use std::str::FromStr;
 
+
     #[test]
     fn apply_block_test() {
         let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
@@ -406,8 +396,9 @@ mod tests {
     #[test]
     fn create_header_test() {
         let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
-        let number: BlockNumber = 1;
-        let ttimestamp: u64  = 1;
+        let bc = BlockChain::new(memory_db.clone());
+        let parent_hash = bc.best_block_hash();
+
         let author: Address = Address::default();
         let extra_data: Bytes = vec![];
         let gas_used: U256 = U256::zero();
@@ -415,8 +406,14 @@ mod tests {
         let difficulty: U256 = U256::zero();
         let transactions: Vec<SignedTransaction> = vec![];
 
-        let header = create_header(number,ttimestamp,author,extra_data,gas_used,gas_limit,difficulty,transactions,memory_db);
+        let header = create_header(parent_hash,author,extra_data,gas_limit,difficulty,transactions,memory_db);
         println!("{:?}",header);
+    }
+
+    #[test]
+    fn now_timestamp_test() {
+        let now = get_now_timestamp();
+        println!("{:?}",now);
     }
 
 }
