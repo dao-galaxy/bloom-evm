@@ -169,7 +169,6 @@ fn apply_block(header: Header,
                transactions: Vec<SignedTransaction>,
                db: Arc<dyn (::kvdb::KeyValueDB)>) {
 
-
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::default();
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
@@ -187,88 +186,7 @@ fn apply_block(header: Header,
     let best_header = bc.best_block_header();
     let mut root = best_header.state_root();
 
-    for tx in &transactions{
-
-        let vicinity = BackendVicinity {
-            gas_price: tx.gas_price,
-            origin: tx.sender(),
-            chain_id: U256::zero(),
-            block_hashes: Vec::new(),
-            block_number: U256::from(header.number()),
-            block_coinbase: header.author(),
-            block_timestamp: U256::from(header.timestamp()),
-            block_difficulty: header.difficulty(),
-            block_gas_limit: header.gas_limit(),
-        };
-
-        let mut backend = match root == KECCAK_NULL_RLP {
-            true => {
-                State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
-            },
-            false => {
-                State::from_existing(root,&vicinity,journal_db.boxed_clone(),factories.clone()).unwrap()
-            }
-        };
-
-
-        let from = tx.sender();
-        let to = tx.receiver();
-        let value = tx.value;
-        let gas_limit = tx.gas.as_u32();
-        let gas_price = tx.gas_price;
-        let nonce = Some(tx.nonce);
-
-        let config = Config::istanbul();
-        let executor = StackExecutor::new(
-            &mut backend,
-            gas_limit as usize,
-            &config,
-        );
-
-        match to {
-            None => {
-                let contract_address = execute_evm(
-                    from.clone(),
-                    value,
-                    gas_limit,
-                    gas_price,
-                    nonce,
-                    |executor| {
-                        (executor.create_address(
-                            evm::CreateScheme::Legacy { caller: from.clone() },
-                        ), executor.transact_create(
-                            from,
-                            value,
-                            tx.data.clone(),
-                            gas_limit as usize,
-                        ))
-                    },
-                    &mut backend
-                ).expect("Create contract failed");
-            },
-
-            Some(contract_address) => {
-                let retv = execute_evm(
-                    from,
-                    value,
-                    gas_limit,
-                    gas_price,
-                    nonce,
-                    |executor| ((), executor.transact_call(
-                        from,
-                        contract_address,
-                        value,
-                        tx.data.clone(),
-                        gas_limit as usize,
-                    )),
-                    &mut backend
-                ).expect("Call message failed");
-            }
-        }
-
-        root = backend.commit();
-
-    }
+    execute_transaction(true, &header, root, &transactions, &factories, journal_db);
 
     let mut block = Block::default();
     block.header = header.clone();
@@ -281,7 +199,6 @@ fn apply_block(header: Header,
     bc.insert_block(block).unwrap();
 }
 
-
 /// create header and not commit to state to disk
 pub fn create_header(
     number: BlockNumber,
@@ -292,7 +209,7 @@ pub fn create_header(
     gas_limit: U256,
     difficulty: U256,
     transactions: Vec<SignedTransaction>,
-    db: Arc<dyn (::kvdb::KeyValueDB)>
+    db: Arc<dyn (kvdb::KeyValueDB)>
 ) -> Header {
 
     assert!(number > 0 , "Block number must be greater 0");
@@ -309,7 +226,6 @@ pub fn create_header(
     let mut bc = BlockChain::new(db.clone());
     let mut journal_db = journaldb::new(db.clone(),journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
-
     let parent_block_number = number - 1;
     let parent_block = bc.block_by_number(parent_block_number).expect("Block body does not exist");
     let parent_header = parent_block.header;
@@ -323,11 +239,32 @@ pub fn create_header(
     header.set_gas_limit(gas_limit);
     header.set_difficulty(difficulty);
     header.set_parent_hash(header.hash());
+    let (total_gas_used, new_state_trie_root) = execute_transaction(
+        false,
+        &mut header,
+        root,
+        &transactions,
+        &factories,
+        journal_db
+    );
+    header.set_gas_used(total_gas_used);
+    header.set_state_root(new_state_trie_root);
+    header.set_transactions_root(build_transaction_trie(transactions, &db, &factories));
+    header
+}
+
+pub fn execute_transaction(
+    commit : bool,
+    header : &Header,
+    state_trie_root: H256,
+    transactions: &Vec<SignedTransaction>,
+    factories : &Factories,
+    journal_db : Box<dyn JournalDB> ) -> (U256, H256) {
 
     let mut total_gas_used = U256::zero();
+    let mut new_state_trie_root = state_trie_root;
 
-    for tx in &transactions{
-
+    for tx in transactions {
         let vicinity = BackendVicinity {
             gas_price: tx.gas_price,
             origin: tx.sender(),
@@ -340,15 +277,14 @@ pub fn create_header(
             block_gas_limit: header.gas_limit(),
         };
 
-        let mut backend = match root == KECCAK_NULL_RLP {
+        let mut backend = match state_trie_root == KECCAK_NULL_RLP {
             true => {
                 State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
             },
             false => {
-                State::from_existing(root,&vicinity,journal_db.boxed_clone(),factories.clone()).unwrap()
+                State::from_existing(state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
             }
         };
-
 
         let from = tx.sender();
         let to = tx.receiver();
@@ -378,9 +314,9 @@ pub fn create_header(
                             evm::CreateScheme::Legacy { caller: from.clone()});
 
                         let retv = executor.transact_create(
-                                from,
-                                value,
-                                tx.data.clone(),
+                            from,
+                            value,
+                            tx.data.clone(),
                             gas_limit as usize,
                         );
 
@@ -421,31 +357,29 @@ pub fn create_header(
                 total_gas_used = total_gas_used + U256::from(gas_used);
             }
         }
-
-        root = backend.root();
-
+        if commit {
+            backend.commit();
+        }
+        new_state_trie_root = backend.root();
     }
 
-    header.set_gas_used(total_gas_used);
-    header.set_state_root(root);
+    (total_gas_used, new_state_trie_root)
+}
 
-
-    // create tx trie
-    let mut tx_root = H256::default();
+pub fn build_transaction_trie(transactions: Vec<SignedTransaction>, db: &Arc<dyn (kvdb::KeyValueDB)>, factories : &Factories) -> H256 {
+    // create transaction trie in memory-db
+    let mut transaction_trie_root = H256::default();
     {
-        let mut jour_db = journaldb::new(db.clone(), journaldb::Algorithm::Archive, bloom_db::COL_TRANSACTION);
-        let mut tx_trie = factories.trie.create(jour_db.as_hash_db_mut(), &mut tx_root);
-
+        let mut journal_db = journaldb::new(db.clone(), journaldb::Algorithm::Archive, bloom_db::COL_TRANSACTION);
+        let mut transaction_trie = factories.trie.create(journal_db.as_hash_db_mut(), &mut transaction_trie_root);
         for tx in transactions {
             let utx = UnverifiedTransaction::from(tx);
             let tx_hash = utx.hash();
             let tx_raw_data = utx.rlp_bytes();
-            tx_trie.insert(tx_hash.as_bytes(), tx_raw_data.as_slice()).unwrap();
+            transaction_trie.insert(tx_hash.as_bytes(), tx_raw_data.as_slice()).unwrap();
         }
     }
-
-    header.set_transactions_root(tx_root);
-    header
+    transaction_trie_root
 }
 
 
