@@ -266,14 +266,12 @@ pub fn execute_transaction(
             block_gas_limit: header.gas_limit(),
         };
 
-        let mut backend = match state_trie_root == KECCAK_NULL_RLP {
-            true => {
-                State::new(&vicinity,journal_db.boxed_clone(),factories.clone())
-            },
-            false => {
-                State::from_existing(state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
-            }
-        };
+        let mut backend : State;
+        if state_trie_root == KECCAK_NULL_RLP {
+            backend = State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
+        } else {
+            backend = State::from_existing(state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
+        }
 
         let from = tx.sender();
         let to = tx.receiver();
