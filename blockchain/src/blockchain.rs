@@ -1,8 +1,8 @@
 
 use ethereum_types::{U256, H256};
 use common_types::header::Header;
-use common_types::BlockNumber;
-use common_types::block::Block;
+use common_types::{BlockNumber,block::{BlockHashList,Block}};
+use common_types::transaction::{TransactionHashList, UnverifiedTransaction, TransactionBody,TransactionLocation};
 use parking_lot::{RwLock};
 use bloom_db;
 use kvdb::{DBTransaction, KeyValueDB};
@@ -12,15 +12,14 @@ use std::sync::Arc;
 
 pub struct BlockChain {
     db: Arc<dyn KeyValueDB>,
-    best_block: RwLock<Block>,
+    best_block_header: RwLock<Header>,
 }
-
 
 impl BlockChain {
     pub fn new(db: Arc<dyn KeyValueDB>) -> Self {
         let bc = BlockChain {
             db,
-            best_block: RwLock::new(Block::default()),
+            best_block_header: RwLock::new(Header::default()),
         };
 
         let best_block_hash = match bc.db.get(bloom_db::COL_EXTRA,b"best")
@@ -36,13 +35,15 @@ impl BlockChain {
                 let hash = genesis.hash();
                 batch.put(bloom_db::COL_HEADERS, hash.as_bytes(), genesis.encoded().as_slice());
 
-                let mut genesis_block = Block::default();
-                genesis_block.header = genesis.clone();
-                genesis_block.transactions = vec![];
-                batch.put(bloom_db::COL_BODIES, hash.as_bytes(),genesis_block.rlp_bytes().as_slice());
+                let genesis_block_transactions = TransactionHashList::default();
+
+                batch.write(bloom_db::COL_BODIES, &hash,&genesis_block_transactions);
 
                 let block_number: BlockNumber = genesis.number();
-                batch.write(bloom_db::COL_EXTRA,&block_number,&hash);
+                let mut block_hash_list = BlockHashList::default();
+                block_hash_list.push(hash);
+
+                batch.write(bloom_db::COL_EXTRA,&block_number,&block_hash_list);
                 batch.put(bloom_db::COL_EXTRA,b"best",hash.as_bytes());
 
                 bc.db.write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
@@ -52,36 +53,29 @@ impl BlockChain {
         };
 
         {
-            let body = bc.db.read(bloom_db::COL_BODIES,&best_block_hash).expect("not found body");
-            let mut best_block = bc.best_block.write();
-            *best_block = body;
+            let header = bc.get_header_by_blockhash(best_block_hash).expect("not found header");
+            let mut best_block_header = bc.best_block_header.write();
+            *best_block_header = header;
         }
-
         bc
+    }
 
+    pub fn get_header_by_blockhash(&self, hash: H256) -> Option<Header> {
+        self.db.read(bloom_db::COL_HEADERS,&hash)
     }
 
     /// Get best block header
     pub fn best_block_header(&self) -> Header {
-        self.best_block.read().header.clone()
+        self.best_block_header.read().clone()
     }
 
-    pub fn best_block(&self) -> Block {
-        self.best_block.read().clone()
-    }
-
-    pub fn set_best_block(&mut self, b: Block) {
-        let mut bb = self.best_block.write();
-        *bb = b;
-    }
-
-    pub fn block_by_hash(&self, hash: H256) -> Option<Block> {
-        self.db.read(bloom_db::COL_BODIES, &hash)
-    }
 
     /// Get the hash of given block's number.
     pub fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-        self.db.read(bloom_db::COL_EXTRA, &index)
+        let v: Option<BlockHashList> = self.db.read(bloom_db::COL_EXTRA, &index);
+        v.map(|v| {
+            v.block_hashes()[0]
+        })
     }
 
     /// Get the block of given block's number.
@@ -89,47 +83,87 @@ impl BlockChain {
         self.block_hash(index).map(|hash| self.block_by_hash(hash).unwrap())
     }
 
-    pub fn insert_block(&mut self,block: Block) -> Result<(),&str> {
-        let best_hash = self.best_block_hash();
-        let parent_hash = block.header.parent_hash();
-        if best_hash != parent_hash {
-            return Err("not right block");
+    pub fn block_by_hash(&self, hash: H256) -> Option<Block> {
+        let header = self.get_header_by_blockhash(hash.clone());
+        if header.is_none() {
+            return None
         }
 
-        let block_hash = block.header.hash();
-        let mut batch = DBTransaction::new();
-        batch.put(bloom_db::COL_HEADERS, block_hash.as_bytes(), block.header.encoded().as_slice());
-        batch.put(bloom_db::COL_BODIES, block_hash.as_bytes(),block.rlp_bytes().as_slice());
+        let header = header.unwrap();
+        let transaction_hash_list = self.transaction_hash_list_by_block_hash(hash.clone());
+        let txs = transaction_hash_list.map(|t| {
+            let mut txs:Vec<UnverifiedTransaction> = vec![];
+            for tx_hash in t.transactions() {
+                let body = self.transaction_body_by_hash(tx_hash.clone()).unwrap();
+                txs.push(body.transaction.clone());
+            }
+            txs
+        });
+        let txs = txs.unwrap_or(vec![]);
+        Some(Block::new(header,txs))
+    }
 
+    pub fn transaction_hash_list_by_block_hash(&self, block_hash: H256) -> Option<TransactionHashList> {
+        self.db.read(bloom_db::COL_BODIES,&block_hash)
+    }
+
+    pub fn transaction_body_by_hash(&self,tx_hash: H256) -> Option<TransactionBody>{
+        self.db.read(bloom_db::COL_TRANSACTION,&tx_hash)
+    }
+
+    pub fn insert_block(&mut self,block: Block) -> Result<(),&str> {
+        let block_hash = block.header.hash();
+        let transactions = TransactionHashList::from(block.transactions.clone());
+        let mut batch = DBTransaction::new();
+        // write block_hash -> header
+        batch.put(bloom_db::COL_HEADERS, block_hash.as_bytes(), block.header.encoded().as_slice());
+        // write block_hash -> transaction list
+        batch.write(bloom_db::COL_BODIES, &block_hash,&transactions);
+
+        // write block_number -> block hash list
         let block_number: BlockNumber = block.header.number();
-        batch.write(bloom_db::COL_EXTRA,&block_number,&block_hash);
-        batch.put(bloom_db::COL_EXTRA,b"best",block_hash.as_bytes());
+        let mut block_hashes = self.db.read(bloom_db::COL_EXTRA,&block_number).
+            map_or(BlockHashList::default(),|b| b);
+        block_hashes.push(block_hash).unwrap();
+        batch.write(bloom_db::COL_EXTRA,&block_number,&block_hashes);
+
+        // write tx hash -> tx body
+        for (i,tx) in block.transactions.iter().enumerate() {
+            let loc = TransactionLocation::new(block_hash.clone(),block_number,i as u64);
+            self.write_transaction(&mut batch, tx.clone(), loc);
+        }
 
         self.db.write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
-
-        self.set_best_block(block.clone());
 
         Ok(())
     }
 
+    fn write_transaction(&self, batch: &mut DBTransaction, tx: UnverifiedTransaction,loc : TransactionLocation){
+        let tx_hash = tx.hash();
+        let mut tx_body:TransactionBody = self.db.read(bloom_db::COL_TRANSACTION,&tx_hash).
+                map_or(TransactionBody::new(tx.clone()),|b| b);
+        tx_body.append_location(loc);
+        batch.write(bloom_db::COL_TRANSACTION,&tx_hash,&tx_body);
+    }
+
     /// Get best block hash.
     pub fn best_block_hash(&self) -> H256 {
-        self.best_block.read().header.hash()
+        self.best_block_header.read().hash()
     }
 
     /// Get best block number.
     pub fn best_block_number(&self) -> BlockNumber {
-        self.best_block.read().header.number()
+        self.best_block_header.read().number()
     }
 
     /// Get best block timestamp.
     pub fn best_block_timestamp(&self) -> u64 {
-        self.best_block.read().header.timestamp()
+        self.best_block_header.read().timestamp()
     }
 
     /// Get best block total difficulty.
     pub fn best_block_difficulty(&self) -> U256 {
-        self.best_block.read().header.difficulty()
+        self.best_block_header.read().difficulty()
     }
 
 }
@@ -164,10 +198,7 @@ mod tests {
         let memory_db = Arc::new(::kvdb_memorydb::create(bloom_db::NUM_COLUMNS));
         let mut bc = BlockChain::new(memory_db);
 
-
         let mut header = Header::default();
-
-
         let parent_hash = bc.best_block_hash();
         header.set_parent_hash(parent_hash.clone());
 
@@ -203,7 +234,7 @@ mod tests {
         let ret = bc.insert_block(block1).unwrap();
         assert_eq!(ret,());
 
-        let parent_hash = bc.best_block_hash();
+        let parent_hash = header.hash();
         header.set_parent_hash(parent_hash.clone());
         let mut block2 = Block::default();
         header.set_number(2 as u64);
@@ -212,12 +243,8 @@ mod tests {
         let ret = bc.insert_block(block2.clone()).unwrap();
         assert_eq!(ret,());
 
-        assert_eq!(bc.best_block_hash(),block2.header.hash());
-
         let b1 = bc.block_by_number(1).unwrap();
         let b2 = bc.block_by_number(2).unwrap();
         assert_eq!(b1.header.hash(),b2.header.parent_hash());
-
-
     }
 }

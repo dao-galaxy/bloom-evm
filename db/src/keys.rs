@@ -1,7 +1,12 @@
 
 use std::convert::AsRef;
 
-use common_types::{BlockNumber,block::Block};
+use common_types::{
+    BlockNumber,
+    block::{BlockHashList,Block},
+    transaction::{TransactionBody,TransactionHashList},
+    header::Header,
+};
 use ethereum_types::{H256};
 
 use crate::db::Key;
@@ -14,7 +19,7 @@ impl AsRef<[u8]> for BlockNumberKey {
     }
 }
 
-impl Key<H256> for BlockNumber {
+impl Key<BlockHashList> for BlockNumber {
     type Target = BlockNumberKey;
 
     fn key(&self) -> Self::Target {
@@ -31,6 +36,27 @@ impl Key<H256> for BlockNumber {
 impl Key<Block> for H256 {
     type Target = Self;
 
+    fn key(&self) -> H256 {
+        *self
+    }
+}
+
+impl Key<TransactionBody> for H256 {
+    type Target = Self;
+    fn key(&self) -> H256 {
+        *self
+    }
+}
+
+impl Key<TransactionHashList> for H256 {
+    type Target = Self;
+    fn key(&self) -> H256 {
+        *self
+    }
+}
+
+impl Key<Header> for H256 {
+    type Target = Self;
     fn key(&self) -> H256 {
         *self
     }
