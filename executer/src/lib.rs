@@ -150,7 +150,35 @@ pub enum ExecError
     BlockHashNotExist,
 }
 
-fn apply_block(header: Header,
+pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>) -> (U256, U256) {
+    let trie_layout = ethtrie::Layout::default();
+    let trie_spec = TrieSpec::default();
+    let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
+
+    let account_factory = AccountFactory::default();
+    let factories = Factories{
+        trie: trie_factory,
+        accountdb: account_factory,
+    };
+
+    let mut bc = BlockChain::new(db.clone());
+    let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
+
+
+    let best_header = bc.best_block_header();
+    let mut root = best_header.state_root();
+    let vicinity = BackendVicinity::default();
+    let backend =
+        if root == KECCAK_NULL_RLP {
+            State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
+        } else {
+            State::from_existing(root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
+        };
+    let account = backend.get_account(address);
+    (*account.nonce(),*account.balance())
+}
+
+pub fn apply_block(header: Header,
                transactions: Vec<SignedTransaction>,
                db: Arc<dyn (::kvdb::KeyValueDB)>) {
 

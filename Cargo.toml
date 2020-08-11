@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Edwin Wang <lark930@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "bloom-evm-shell"
+path = "./src/main.rs"
+
 [dependencies]
 docopt = "1.0"
 evm = "0.16"

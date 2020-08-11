@@ -133,6 +133,12 @@ impl BlockChain {
             self.write_transaction(&mut batch, tx.clone(), loc);
         }
 
+        // update best header
+        let mut best_header = self.best_block_header.write();
+        if best_header.number() < block.header.number() {
+            *best_header = block.header.clone();
+        }
+
         self.db.write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
 
         Ok(())
@@ -246,5 +252,6 @@ mod tests {
         let b1 = bc.block_by_number(1).unwrap();
         let b2 = bc.block_by_number(2).unwrap();
         assert_eq!(b1.header.hash(),b2.header.parent_hash());
+        assert_eq!(b2.header,bc.best_block_header());
     }
 }

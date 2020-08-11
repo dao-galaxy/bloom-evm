@@ -13,7 +13,7 @@ pub use account_db::Factory as AccountFactory;
 use ethtrie;
 
 
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Default)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BackendVicinity {
     pub gas_price: U256,
