@@ -30,3 +30,8 @@ bloom-db = {path = "./db"}
 
 [build-dependencies.cc]
 version = ">= 1.0.28, <= 1.0.41"
+
+[workspace]
+members = [
+    "main",
+]
