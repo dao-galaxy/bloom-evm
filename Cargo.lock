@@ -365,7 +365,7 @@ dependencies = [
 [[package]]
 name = "common-types"
 version = "0.1.0"
-source = "git+https://github.com/recursive-bloom/common-types#2d1efc757a3a771624f8b69bf7b9831afc264179"
+source = "git+https://github.com/recursive-bloom/common-types#42b18345b753a10537aa94ff8a2d485f8181219a"
 dependencies = [
  "ethereum-types",
  "hex 0.4.2",

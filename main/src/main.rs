@@ -48,6 +48,8 @@ mod tests {
     use ethereum_types::Address;
     use std::str::FromStr;
     use rlp;
+    use hex_literal::hex;
+
 
     #[test]
     fn account_info_test(){
