@@ -15,6 +15,7 @@ fn main() {
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
     let blockchain = BlockChain::new(database.clone());
+    //println!("{:?}",blockchain.best_block_header().state_root());
     run_server(END_POINT,database,blockchain);
 }
 

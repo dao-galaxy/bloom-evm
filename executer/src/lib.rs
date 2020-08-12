@@ -152,7 +152,7 @@ pub enum ExecError
 
 pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>) -> (U256, U256) {
     let trie_layout = ethtrie::Layout::default();
-    let trie_spec = TrieSpec::default();
+    let trie_spec = TrieSpec::Generic;
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
 
     let account_factory = AccountFactory::default();
@@ -183,7 +183,7 @@ pub fn apply_block(header: Header,
                db: Arc<dyn (::kvdb::KeyValueDB)>) {
 
     let trie_layout = ethtrie::Layout::default();
-    let trie_spec = TrieSpec::default();
+    let trie_spec = TrieSpec::Generic;
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
 
     let account_factory = AccountFactory::default();
@@ -224,7 +224,7 @@ pub fn create_header(
 ) -> Result<Header,ExecError> {
 
     let trie_layout = ethtrie::Layout::default();
-    let trie_spec = TrieSpec::default();
+    let trie_spec = TrieSpec::Generic;
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
 
     let account_factory = AccountFactory::default();
