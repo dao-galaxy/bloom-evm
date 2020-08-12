@@ -50,7 +50,7 @@ impl<'vicinity> State<'vicinity> {
             factories,
             logs: vec![],
         };
-        Self::init_genesis(&mut s);
+        //Self::init_genesis(&mut s);
         s
     }
 
