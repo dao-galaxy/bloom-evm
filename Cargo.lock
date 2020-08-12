@@ -1110,6 +1110,7 @@ dependencies = [
  "bloom-blockchain",
  "bloom-db",
  "common-types",
+ "ethereum-types",
  "executer",
  "kvdb",
  "kvdb-rocksdb",
