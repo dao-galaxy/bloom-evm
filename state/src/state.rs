@@ -11,6 +11,8 @@ use trie_db::NodeCodec;
 use keccak_hash::{keccak, KECCAK_NULL_RLP};
 use parity_bytes::Bytes;
 
+use std::str::FromStr;
+
 
 use std::collections::{HashSet, HashMap, BTreeMap};
 use kvdb::DBTransaction;
@@ -41,13 +43,39 @@ impl<'vicinity> State<'vicinity> {
     pub fn new(vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> Self {
         let root = ethtrie::RlpNodeCodec::hashed_null_node();
 
-        State{
+        let mut s = State{
             vicinity,
             db,
             root,
             factories,
             logs: vec![],
-        }
+        };
+        Self::init_genesis(&mut s);
+        s
+    }
+
+    fn init_genesis(&mut self) {
+        // todo read from config file
+        let from = H160::from_str("26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5").expect("--address argument must be a valid address");
+        let value = U256::from_dec_str("100000000000000000000000000").expect("--value argument must be a valid number");
+        let nonce = U256::from_dec_str("0").expect("--nonce argument must be a valid number");
+
+        let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+
+        applies.push(Apply::Modify {
+            address: from.clone(),
+            basic: Basic{
+                balance: value,
+                nonce,
+            },
+            code: None,
+            storage: BTreeMap::new(),
+            reset_storage: false,
+        });
+
+        self.apply(applies,Vec::new(),false);
+        let root = self.commit();
+        println!("init genesis state, root={:?}",root);
     }
 
     pub fn from_existing(root: H256, vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> TrieResult<State> {
