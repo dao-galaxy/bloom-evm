@@ -55,7 +55,7 @@ mod tests {
     fn account_info_test(){
         let context = Context::new();
         let socket = context.socket(DEALER).unwrap();
-        socket.set_identity( &hex!("bloom-evm").to_vec() ).unwrap();
+        socket.set_identity( b"bloom-evm" ).unwrap();
         socket.connect(END_POINT).unwrap();
 
         let address = Address::from_str("26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5").unwrap();
