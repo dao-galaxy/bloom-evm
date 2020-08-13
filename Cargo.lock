@@ -365,7 +365,7 @@ dependencies = [
 [[package]]
 name = "common-types"
 version = "0.1.0"
-source = "git+https://github.com/recursive-bloom/common-types#42b18345b753a10537aa94ff8a2d485f8181219a"
+source = "git+https://github.com/recursive-bloom/common-types#1f8953d231e47d022bd74e26761337172fd671b0"
 dependencies = [
  "ethereum-types",
  "hex 0.4.2",
@@ -1479,9 +1479,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "2.16.2"
+version = "2.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d883f78645c21b7281d21305181aa1f4dd9e9363e7cf2566c93121552cff003e"
+checksum = "cb14183cc7f213ee2410067e1ceeadba2a7478a59432ff0747a335202798b1e2"
 
 [[package]]
 name = "quick-error"
@@ -2119,9 +2119,9 @@ checksum = "373c8a200f9e67a0c95e62a4f52fbf80c23b4381c05a17845531982fa99e6b33"
 
 [[package]]
 name = "uint"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "429ffcad8c8c15f874578c7337d156a3727eb4a1c2374c0ae937ad9a9b748c80"
+checksum = "9db035e67dfaf7edd9aebfe8676afcd63eed53c8a4044fed514c8cccf1835177"
 dependencies = [
  "byteorder",
  "crunchy",

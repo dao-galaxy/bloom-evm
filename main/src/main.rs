@@ -8,7 +8,7 @@ use kvdb_rocksdb::{Database,DatabaseConfig};
 use std::sync::Arc;
 use blockchain_db::BlockChain;
 
-const END_POINT : &'static str = "tcp://0.0.0.0:";
+const END_POINT : &'static str = "tcp://127.0.0.1:";
 const DATA_PATH: &'static str = "evm-data";
 
 fn main() {
