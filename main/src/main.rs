@@ -16,12 +16,12 @@ fn main() {
     let end_point = String::from(END_POINT) + port.as_str();
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
-    let blockchain = BlockChain::new(database.clone());
+    let mut blockchain = BlockChain::new(database.clone());
     //println!("{:?}",blockchain.best_block_header().state_root());
-    run_server(end_point.as_str(),database,blockchain);
+    run_server(end_point.as_str(),database,&mut blockchain);
 }
 
-pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: BlockChain) {
+pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain) {
     let context = Context::new();
     let socket = context.socket(ROUTER).unwrap();
     socket.bind(end_point).unwrap();
@@ -35,7 +35,7 @@ pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain
             msg_bytes
         );
 
-        let result = handler::handler(msg_bytes.clone(),db.clone(), &blockchain);
+        let result = handler::handler(msg_bytes.clone(),db.clone(), blockchain);
         let result_data = result.rlp_bytes();
 
         socket.send_multipart(vec![zmq_identity, result_data.clone()], 0).unwrap();

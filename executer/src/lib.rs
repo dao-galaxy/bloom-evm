@@ -180,7 +180,8 @@ pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>) -> (U25
 
 pub fn apply_block(header: Header,
                transactions: Vec<SignedTransaction>,
-               db: Arc<dyn (::kvdb::KeyValueDB)>) {
+                   db: Arc<dyn (::kvdb::KeyValueDB)>,
+               state_root: H256) {
 
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::Generic;
@@ -192,24 +193,10 @@ pub fn apply_block(header: Header,
         accountdb: account_factory,
     };
 
-    let mut bc = BlockChain::new(db.clone());
     let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
+    execute_transaction(true, &header, state_root, &transactions, &factories, journal_db);
 
-    let best_header = bc.best_block_header();
-    let mut root = best_header.state_root();
-
-    execute_transaction(true, &header, root, &transactions, &factories, journal_db);
-
-    let mut block = Block::default();
-    block.header = header.clone();
-    let mut txs: Vec<UnverifiedTransaction> = vec![];
-    for tx in transactions {
-        let utx = UnverifiedTransaction::from(tx);
-        txs.push(utx);
-    }
-    block.transactions = txs;
-    bc.insert_block(block).unwrap();
 }
 
 /// create header and not commit to state to disk

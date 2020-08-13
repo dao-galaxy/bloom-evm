@@ -1,14 +1,15 @@
 
 use common_types::ipc::*;
-use common_types::transaction::SignedTransaction;
+use common_types::transaction::{SignedTransaction,UnverifiedTransaction};
 use rlp;
 use evm_executer;
 use blockchain_db::BlockChain;
 use std::sync::Arc;
 use std::hash::Hasher;
 use common_types::header::Header;
+use common_types::block::Block;
 
-pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &BlockChain) -> IpcReply {
+pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut BlockChain) -> IpcReply {
 
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
     match request.method.as_str() {
@@ -30,7 +31,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &Blo
         },
         "ApplyBlock" => {
             let req: ApplyBlockReq = rlp::decode(request.params.as_slice()).unwrap();
-            let resp = apply_block(req,db);
+            let resp = apply_block(req,db,blockchain);
             return IpcReply {
                 id: request.id,
                 result: rlp::encode(&resp),
@@ -83,12 +84,20 @@ fn latest_blocks(req: LatestBlocksReq, blockchain: &BlockChain) -> LatestBlocksR
     LatestBlocksResp(headers)
 }
 
-fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>) -> ApplyBlockResp {
+fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut BlockChain) -> ApplyBlockResp {
     let mut signed_trx: Vec<SignedTransaction> = vec![];
-    for tx in req.1 {
+    for tx in req.1.clone() {
         signed_trx.push(SignedTransaction::new(tx).unwrap());
     }
-    evm_executer::apply_block(req.0,signed_trx,db);
+
+    let best_header = bc.best_block_header();
+    let mut root = best_header.state_root();
+    evm_executer::apply_block(req.0.clone(),signed_trx.clone(),db,root);
+
+    let mut block = Block::default();
+    block.header = req.0.clone();
+    block.transactions = req.1.clone();
+    bc.insert_block(block).unwrap();
     ApplyBlockResp(true)
 }
 
