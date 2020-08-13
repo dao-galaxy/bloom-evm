@@ -8,15 +8,17 @@ use kvdb_rocksdb::{Database,DatabaseConfig};
 use std::sync::Arc;
 use blockchain_db::BlockChain;
 
-const END_POINT : &'static str = "tcp://0.0.0.0:7051";
+const END_POINT : &'static str = "tcp://0.0.0.0:";
 const DATA_PATH: &'static str = "evm-data";
 
 fn main() {
+    let port = std::env::args().nth(1).expect("no given port");
+    let end_point = String::from(END_POINT) + port.as_str();
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
     let blockchain = BlockChain::new(database.clone());
     //println!("{:?}",blockchain.best_block_header().state_root());
-    run_server(END_POINT,database,blockchain);
+    run_server(end_point.as_str(),database,blockchain);
 }
 
 pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: BlockChain) {
@@ -51,6 +53,7 @@ mod tests {
     use rlp;
     use hex_literal::hex;
 
+    const END_POINT : &'static str = "tcp://127.0.0.1:8050";
 
     #[test]
     fn account_info_test(){
