@@ -280,7 +280,7 @@ pub fn execute_transaction(
             block_difficulty: header.difficulty(),
             block_gas_limit: header.gas_limit(),
         };
-
+        println!("state root={:?}",state_trie_root);
         let mut backend =
             if state_trie_root == KECCAK_NULL_RLP {
                 State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
