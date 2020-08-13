@@ -138,6 +138,8 @@ impl BlockChain {
         if best_header.number() < block.header.number() {
             *best_header = block.header.clone();
         }
+        batch.put(bloom_db::COL_EXTRA,b"best",block.header.hash().as_bytes());
+
         self.db.write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
         println!("best header={:?}",best_header);
         Ok(())

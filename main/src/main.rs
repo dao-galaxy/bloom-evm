@@ -48,7 +48,7 @@ mod tests {
     use super::*;
     use zmq::{Context, DEALER, ROUTER};
     use common_types::ipc::*;
-    use ethereum_types::Address;
+    use ethereum_types::{Address, U256};
     use std::str::FromStr;
     use rlp;
     use hex_literal::hex;
@@ -90,6 +90,67 @@ mod tests {
         println!("----nonce={:?}",resp.0);
 
 
+        let req = LatestBlocksReq(1);
+        let ipc_req = IpcRequest{
+            method:"LatestBlocks".to_string(),
+            id: 1u64,
+            params: rlp::encode(&req),
+        };
+        let rlp_bytes = rlp::encode(&ipc_req);
+        socket.send(rlp_bytes,0).unwrap();
+        let mut received_parts = socket.recv_multipart(0).unwrap();
+        //println!("client thread, received from server, #received_parts: {:?}", received_parts);
+        let resp = received_parts.pop().unwrap();
+        let ipc_resp: IpcReply = rlp::decode(resp.as_slice()).unwrap();
+        let resp: LatestBlocksResp = rlp::decode(ipc_resp.result.as_slice()).unwrap();
+        println!("LastestBlocksResp={:?}",resp);
+
+        let latest_header = resp.0.get(0).unwrap();
+        let req = CreateHeaderReq::new(latest_header.hash(),address,b"jack".to_vec(),U256::zero(),U256::zero(),vec![]);
+        let ipc_req = IpcRequest{
+            method:"CreateHeader".to_string(),
+            id: 1u64,
+            params: rlp::encode(&req),
+        };
+        let rlp_bytes = rlp::encode(&ipc_req);
+        socket.send(rlp_bytes,0).unwrap();
+        let mut received_parts = socket.recv_multipart(0).unwrap();
+        //println!("client thread, received from server, #received_parts: {:?}", received_parts);
+        let resp = received_parts.pop().unwrap();
+        let ipc_resp: IpcReply = rlp::decode(resp.as_slice()).unwrap();
+        let resp: CreateHeaderResp = rlp::decode(ipc_resp.result.as_slice()).unwrap();
+        println!("CreateHeader={:?}",resp.0);
+
+        let req = ApplyBlockReq(resp.0,vec![]);
+        let ipc_req = IpcRequest{
+            method:"ApplyBlock".to_string(),
+            id: 1u64,
+            params: rlp::encode(&req),
+        };
+        let rlp_bytes = rlp::encode(&ipc_req);
+        socket.send(rlp_bytes,0).unwrap();
+        let mut received_parts = socket.recv_multipart(0).unwrap();
+        //println!("client thread, received from server, #received_parts: {:?}", received_parts);
+        let resp = received_parts.pop().unwrap();
+        let ipc_resp: IpcReply = rlp::decode(resp.as_slice()).unwrap();
+        let resp: ApplyBlockResp = rlp::decode(ipc_resp.result.as_slice()).unwrap();
+        println!("CreateHeader={:?}",resp);
+
+
+        let req = LatestBlocksReq(1);
+        let ipc_req = IpcRequest{
+            method:"LatestBlocks".to_string(),
+            id: 1u64,
+            params: rlp::encode(&req),
+        };
+        let rlp_bytes = rlp::encode(&ipc_req);
+        socket.send(rlp_bytes,0).unwrap();
+        let mut received_parts = socket.recv_multipart(0).unwrap();
+        //println!("client thread, received from server, #received_parts: {:?}", received_parts);
+        let resp = received_parts.pop().unwrap();
+        let ipc_resp: IpcReply = rlp::decode(resp.as_slice()).unwrap();
+        let resp: LatestBlocksResp = rlp::decode(ipc_resp.result.as_slice()).unwrap();
+        println!("LastestBlocksResp={:?}",resp);
 
     }
 }
