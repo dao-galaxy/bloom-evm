@@ -39,7 +39,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
         },
         "AccountInfo" => {
             let req: AccountInfoReq = rlp::decode(request.params.as_slice()).unwrap();
-            let resp = account_info(req,db);
+            let resp = account_info(req,db,blockchain);
             return IpcReply {
                 id: request.id,
                 result: rlp::encode(&resp)
@@ -101,7 +101,9 @@ fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut Bl
     ApplyBlockResp(true)
 }
 
-fn account_info(req: AccountInfoReq, db: Arc<dyn (::kvdb::KeyValueDB)>) -> AccountInfoResp {
-    let (nonce,balance) = evm_executer::account_info(req.0,db);
+fn account_info(req: AccountInfoReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut BlockChain ) -> AccountInfoResp {
+    let best_header = bc.best_block_header();
+    let state_root = best_header.state_root();
+    let (nonce,balance) = evm_executer::account_info(req.0,db,state_root);
     AccountInfoResp(nonce,balance)
 }

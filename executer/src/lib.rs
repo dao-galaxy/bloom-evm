@@ -150,7 +150,7 @@ pub enum ExecError
     BlockHashNotExist,
 }
 
-pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>) -> (U256, U256) {
+pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>,root: H256) -> (U256, U256) {
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::Generic;
     let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
@@ -161,12 +161,12 @@ pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>) -> (U25
         accountdb: account_factory,
     };
 
-    let mut bc = BlockChain::new(db.clone());
+    //let mut bc = BlockChain::new(db.clone());
     let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
 
-    let best_header = bc.best_block_header();
-    let mut root = best_header.state_root();
+    //let best_header = bc.best_block_header();
+    //let mut root = best_header.state_root();
     let vicinity = BackendVicinity::default();
     let backend =
         if root == KECCAK_NULL_RLP {
