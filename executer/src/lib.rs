@@ -247,7 +247,7 @@ pub fn create_header(
             let mut root = parent_header.state_root();
 
             let mut header = Header::default();
-            header.set_number(header.number() + 1);
+            header.set_number(parent_header.number() + 1);
             header.set_timestamp(get_now_timestamp());
             header.set_author(author);
             header.set_extra_data(extra_data);
