@@ -253,7 +253,7 @@ pub fn create_header(
             header.set_extra_data(extra_data);
             header.set_gas_limit(gas_limit);
             header.set_difficulty(difficulty);
-            header.set_parent_hash(header.hash());
+            header.set_parent_hash(parent_header.hash());
             let (total_gas_used, new_state_trie_root) = execute_transaction(
                 false,
                 &mut header,
