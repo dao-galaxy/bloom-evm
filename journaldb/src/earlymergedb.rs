@@ -70,7 +70,7 @@ enum RemoveFrom {
 /// share the same era. This forms a data structure similar to a queue but whose items are tuples.
 /// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
 /// into ancient history) then only one commit from the tuple is considered canonical. This commit
-/// is kept in the main backing database, whereas any others from the same era are reverted.
+/// is kept in the chain-state backing database, whereas any others from the same era are reverted.
 ///
 /// It is possible that a key, properly available in the backing database be deleted and re-inserted
 /// in the recent history queue, yet have both operations in commits that are eventually non-canonical.

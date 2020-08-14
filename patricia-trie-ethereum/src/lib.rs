@@ -72,7 +72,7 @@ impl trie_db::TrieLayout for Layout {
 ///
 /// type DBValue = ElasticArray128<u8>;
 ///
-/// fn main() {
+/// fn chain-state() {
 ///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::zero();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
@@ -117,7 +117,7 @@ pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 ///
 /// type DBValue = ElasticArray128<u8>;
 ///
-/// fn main() {
+/// fn chain-state() {
 ///   let mut memdb = journaldb::new_memory_db();
 ///   let mut root = H256::zero();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);

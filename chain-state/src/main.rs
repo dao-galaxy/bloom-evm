@@ -30,7 +30,7 @@ pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain
         let msg_bytes = received_parts.pop().unwrap();
         let zmq_identity = received_parts.pop().unwrap();
         println!(
-            "main thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
+            "chain-state thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
             zmq_identity,
             msg_bytes
         );

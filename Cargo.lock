@@ -328,6 +328,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
+name = "chain-state"
+version = "0.1.0"
+dependencies = [
+ "bloom-blockchain",
+ "bloom-db",
+ "common-types",
+ "ethereum-types",
+ "executer",
+ "hex-literal",
+ "kvdb",
+ "kvdb-rocksdb",
+ "protobuf",
+ "rlp",
+ "zmq",
+]
+
+[[package]]
 name = "clang-sys"
 version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -340,9 +357,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "2.33.2"
+version = "2.33.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10040cdf04294b565d9e0319955430099ec3813a64c952b86a41200ad714ae48"
+checksum = "37e58ac78573c40708d45522f0d80fa2f01cc4f9b4e2bf749807255454312002"
 dependencies = [
  "ansi_term",
  "atty",
@@ -365,7 +382,7 @@ dependencies = [
 [[package]]
 name = "common-types"
 version = "0.1.0"
-source = "git+https://github.com/recursive-bloom/common-types#1f8953d231e47d022bd74e26761337172fd671b0"
+source = "git+https://github.com/recursive-bloom/common-types#6d59d5a74bb138da0be7c41ad48dc2939dce3dc1"
 dependencies = [
  "ethereum-types",
  "hex 0.4.2",
@@ -1101,23 +1118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0609345ddee5badacf857d4f547e0e5a2e987db77085c24cd887f73573a04237"
 dependencies = [
  "hashbrown",
-]
-
-[[package]]
-name = "main"
-version = "0.1.0"
-dependencies = [
- "bloom-blockchain",
- "bloom-db",
- "common-types",
- "ethereum-types",
- "executer",
- "hex-literal",
- "kvdb",
- "kvdb-rocksdb",
- "protobuf",
- "rlp",
- "zmq",
 ]
 
 [[package]]
