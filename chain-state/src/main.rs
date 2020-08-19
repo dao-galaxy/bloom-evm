@@ -14,7 +14,7 @@ const DATA_PATH: &'static str = "evm-data";
 fn main() {
     let ip = std::env::args().nth(1).expect("no given ip");
     let port = std::env::args().nth(2).expect("no given port");
-    let end_point = ip + port.as_str();
+    let end_point = ip + ":" + port.as_str();
     println!("end point:{}",end_point);
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
