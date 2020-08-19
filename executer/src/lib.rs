@@ -268,25 +268,29 @@ pub fn execute_transaction(
     let mut total_gas_used = U256::zero();
     let mut new_state_trie_root = state_trie_root;
 
-    for tx in transactions {
-        let vicinity = BackendVicinity {
-            gas_price: tx.gas_price,
-            origin: tx.sender(),
-            chain_id: U256::zero(),
-            block_hashes: Vec::new(),
-            block_number: U256::from(header.number()),
-            block_coinbase: header.author(),
-            block_timestamp: U256::from(header.timestamp()),
-            block_difficulty: header.difficulty(),
-            block_gas_limit: header.gas_limit(),
+    let mut vicinity = BackendVicinity {
+        gas_price: U256::zero(),
+        origin: Address::default(),
+        chain_id: U256::zero(),
+        block_hashes: Vec::new(),
+        block_number: U256::from(header.number()),
+        block_coinbase: header.author(),
+        block_timestamp: U256::from(header.timestamp()),
+        block_difficulty: header.difficulty(),
+        block_gas_limit: header.gas_limit(),
+    };
+    println!("state root={:?}",state_trie_root);
+    let mut backend =
+        if state_trie_root == KECCAK_NULL_RLP {
+            State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
+        } else {
+            State::from_existing(state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
         };
-        println!("state root={:?}",state_trie_root);
-        let mut backend =
-            if state_trie_root == KECCAK_NULL_RLP {
-                State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
-            } else {
-                State::from_existing(state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
-            };
+
+    for tx in transactions {
+
+        vicinity.gas_price = tx.gas_price;
+        vicinity.origin = tx.sender();
 
         let from = tx.sender();
         let to = tx.receiver();

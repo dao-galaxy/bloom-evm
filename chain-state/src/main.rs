@@ -12,12 +12,13 @@ const END_POINT : &'static str = "tcp://127.0.0.1:";
 const DATA_PATH: &'static str = "evm-data";
 
 fn main() {
-    let port = std::env::args().nth(1).expect("no given port");
-    let end_point = String::from(END_POINT) + port.as_str();
+    let ip = std::env::args().nth(1).expect("no given ip");
+    let port = std::env::args().nth(2).expect("no given port");
+    let end_point = ip + port.as_str();
+    println!("end point:{}",end_point);
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
     let mut blockchain = BlockChain::new(database.clone());
-    //println!("{:?}",blockchain.best_block_header().state_root());
     run_server(end_point.as_str(),database,&mut blockchain);
 }
 

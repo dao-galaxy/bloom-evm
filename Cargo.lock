@@ -357,9 +357,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "2.33.3"
+version = "2.33.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37e58ac78573c40708d45522f0d80fa2f01cc4f9b4e2bf749807255454312002"
+checksum = "10040cdf04294b565d9e0319955430099ec3813a64c952b86a41200ad714ae48"
 dependencies = [
  "ansi_term",
  "atty",
@@ -382,7 +382,7 @@ dependencies = [
 [[package]]
 name = "common-types"
 version = "0.1.0"
-source = "git+https://github.com/recursive-bloom/common-types#6d59d5a74bb138da0be7c41ad48dc2939dce3dc1"
+source = "git+https://github.com/recursive-bloom/common-types#1f8953d231e47d022bd74e26761337172fd671b0"
 dependencies = [
  "ethereum-types",
  "hex 0.4.2",
