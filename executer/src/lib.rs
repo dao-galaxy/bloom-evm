@@ -64,7 +64,9 @@ pub fn execute_evm<F, R>(
 ) -> Result<R, Error> where
     F: FnOnce(&mut StackExecutor<State>) -> (R, ExitReason),
 {
-    assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
+    if gas_price < U256::zero() {
+        return Err(Error::GasPriceTooLow);
+    }
 
     let config = Config::istanbul();
     let mut executor = StackExecutor::new(
@@ -79,11 +81,15 @@ pub fn execute_evm<F, R>(
     let source_account = state_account.basic.clone();
     println!("balance:{}",source_account.balance);
     println!("payment:{}",total_payment);
-    assert!(source_account.balance >= total_payment, Error::BalanceLow);
+    if source_account.balance < total_payment {
+        return Err(Error::BalanceLow);
+    }
     executor.withdraw(source.clone(), total_fee).map_err(|_| Error::WithdrawFailed)?;
 
     if let Some(nonce) = nonce {
-        assert!(source_account.nonce == nonce, Error::InvalidNonce);
+        if source_account.nonce != nonce {
+            return Err(Error::InvalidNonce);
+        }
     }
 
     let (retv, reason) = f(&mut executor);
@@ -115,7 +121,9 @@ pub fn execute_transfer(
     backend: & mut State
 ) -> Result<(), Error>
 {
-    assert!(gas_price >= U256::zero(), Error::GasPriceTooLow);
+    if gas_price < U256::zero() {
+        return Err(Error::GasPriceTooLow);
+    }
 
     let config = Config::istanbul();
     let mut executor = StackExecutor::new(
@@ -127,7 +135,9 @@ pub fn execute_transfer(
     let total_fee = gas_price.checked_mul(U256::from(gas_limit)).ok_or(Error::FeeOverflow)?;
     let total_payment = value.checked_add(total_fee).ok_or(Error::PaymentOverflow)?;
     let state_account = executor.account_mut(from.clone());
-    assert!(state_account.basic.balance >= total_payment, Error::BalanceLow);
+    if state_account.basic.balance < total_payment {
+       return  Err(Error::BalanceLow);
+    }
     state_account.basic.nonce += U256::one();
 
     executor.withdraw(from.clone(), total_fee).map_err(|_| Error::WithdrawFailed)?;
