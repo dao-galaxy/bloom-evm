@@ -8,13 +8,18 @@ use std::sync::Arc;
 use std::hash::Hasher;
 use common_types::header::Header;
 use common_types::block::Block;
+use rlp::DecoderError;
 
 pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut BlockChain) -> IpcReply {
 
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
     match request.method.as_str() {
         "CreateHeader" => {
-            let req: CreateHeaderReq = rlp::decode(request.params.as_slice()).unwrap();
+            let req: Result<CreateHeaderReq,DecoderError> = rlp::decode(request.params.as_slice());
+            if req.is_err() {
+                return IpcReply::default();
+            }
+            let req = req.unwrap();
             let resp = create_header(req,db);
             return IpcReply {
                 id: request.id,
@@ -22,7 +27,12 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
             }
         },
         "LatestBlocks" => {
-            let req: LatestBlocksReq = rlp::decode(request.params.as_slice()).unwrap();
+            let req: Result<LatestBlocksReq,DecoderError> = rlp::decode(request.params.as_slice());
+            if req.is_err() {
+                return IpcReply::default();
+            }
+            let req = req.unwrap();
+
             let resp = latest_blocks(req,blockchain);
             return IpcReply {
                 id: request.id,
@@ -30,7 +40,11 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
             }
         },
         "ApplyBlock" => {
-            let req: ApplyBlockReq = rlp::decode(request.params.as_slice()).unwrap();
+            let req: Result<ApplyBlockReq,DecoderError> = rlp::decode(request.params.as_slice());
+            if req.is_err() {
+                return IpcReply::default();
+            }
+            let req = req.unwrap();
             let resp = apply_block(req,db,blockchain);
             return IpcReply {
                 id: request.id,
@@ -38,7 +52,11 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
             }
         },
         "AccountInfo" => {
-            let req: AccountInfoReq = rlp::decode(request.params.as_slice()).unwrap();
+            let req: Result<AccountInfoReq,DecoderError> = rlp::decode(request.params.as_slice());
+            if req.is_err() {
+                return IpcReply::default();
+            }
+            let req = req.unwrap();
             let resp = account_info(req,db,blockchain);
             return IpcReply {
                 id: request.id,

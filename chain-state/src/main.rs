@@ -1,5 +1,6 @@
 
 mod handler;
+mod query_service;
 
 use zmq::{Context, DEALER, ROUTER};
 use common_types::ipc::IpcReply;
@@ -7,19 +8,33 @@ use rlp::Encodable;
 use kvdb_rocksdb::{Database,DatabaseConfig};
 use std::sync::Arc;
 use blockchain_db::BlockChain;
+use std::thread;
 
-const END_POINT : &'static str = "tcp://127.0.0.1:";
+
 const DATA_PATH: &'static str = "evm-data";
 
 fn main() {
     let ip = std::env::args().nth(1).expect("no given ip");
-    let port = std::env::args().nth(2).expect("no given port");
-    let end_point = ip + ":" + port.as_str();
-    println!("end point:{}",end_point);
+    let consensus_port = std::env::args().nth(2).expect("no given consensus port");
+    let query_port = std::env::args().nth(3).expect("no given query port");
+    let consensus_end_point = String::from("tcp://") + ip.as_str() + ":" + consensus_port.as_str();
+    println!("consensus end point:{}",consensus_end_point);
+
+    let query_end_point = String::from("tcp://") + ip.as_str() + ":" + query_port.as_str();
+    println!("query end point:{}",query_end_point);
+
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, DATA_PATH).unwrap());
+
+    // run query service
+    let db = database.clone();
+    thread::spawn(move ||{
+        query_service::run_query_service(query_end_point.as_str(),db);
+    });
+
+    // run consensus service
     let mut blockchain = BlockChain::new(database.clone());
-    run_server(end_point.as_str(),database,&mut blockchain);
+    run_server(consensus_end_point.as_str(),database.clone(),&mut blockchain);
 }
 
 pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain) {
