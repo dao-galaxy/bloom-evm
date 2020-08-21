@@ -115,7 +115,7 @@ fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut Bl
     let mut block = Block::default();
     block.header = req.0.clone();
     block.transactions = req.1.clone();
-    bc.insert_block(block).unwrap();
+    bc.insert_block(block);
     ApplyBlockResp(true)
 }
 

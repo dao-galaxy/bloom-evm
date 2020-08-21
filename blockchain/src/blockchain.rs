@@ -124,7 +124,8 @@ impl BlockChain {
         let block_number: BlockNumber = block.header.number();
         let mut block_hashes = self.db.read(bloom_db::COL_EXTRA,&block_number).
             map_or(BlockHashList::default(),|b| b);
-        block_hashes.push(block_hash).unwrap();
+        //block_hashes.push(block_hash).unwrap();
+        block_hashes.push(block_hash);
         batch.write(bloom_db::COL_EXTRA,&block_number,&block_hashes);
 
         // write tx hash -> tx body
