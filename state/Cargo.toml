@@ -24,5 +24,6 @@ parity-bytes = "0.1"
 kvdb = "0.5.0"
 
 bloom-db = {path = "../db"}
-
+clap = { version = "3.0.0-beta.1", features = ["yaml"] }
+env_logger = "0.7"
 
