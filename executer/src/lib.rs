@@ -180,9 +180,9 @@ pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>,root: H2
     let vicinity = BackendVicinity::default();
     let backend =
         if root == KECCAK_NULL_RLP {
-            State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
+            State::new(vicinity, journal_db.boxed_clone(), factories.clone())
         } else {
-            State::from_existing(root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
+            State::from_existing(root, vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
         };
     let account = backend.get_account(address);
     (*account.nonce(),*account.balance())
@@ -277,9 +277,15 @@ pub fn execute_transaction(
 
     let mut total_gas_used = U256::zero();
     let mut new_state_trie_root = state_trie_root;
-    let mut jdb = journal_db.boxed_clone();
+    let vicinity = BackendVicinity::default();
+    let mut backend =
+        if new_state_trie_root == KECCAK_NULL_RLP {
+            State::new(vicinity, journal_db, factories.clone())
+        } else {
+            State::from_existing(new_state_trie_root, vicinity, journal_db, factories.clone()).unwrap()
+        };
+
     for tx in transactions {
-        let db = jdb.boxed_clone();
         let vicinity = BackendVicinity {
             gas_price: tx.gas_price,
             origin: tx.sender(),
@@ -292,12 +298,8 @@ pub fn execute_transaction(
             block_gas_limit: header.gas_limit(),
         };
         println!("state root={:?}",new_state_trie_root);
-        let mut backend =
-            if new_state_trie_root == KECCAK_NULL_RLP {
-                State::new(&vicinity, db, factories.clone())
-            } else {
-                State::from_existing(new_state_trie_root, &vicinity, db, factories.clone()).unwrap()
-            };
+
+        backend.setVicinity(vicinity);
 
         let from = tx.sender();
         let to = tx.receiver();
@@ -374,7 +376,6 @@ pub fn execute_transaction(
             backend.commit();
         }
         new_state_trie_root = backend.root();
-        jdb = db.boxed_clone();
     }
 
     (total_gas_used, new_state_trie_root)
@@ -415,7 +416,7 @@ mod tests {
         let mut header = Header::default();
         let best_header = bc.best_block_header();
         header.set_parent_hash(best_header.hash());
-        apply_block(header,vec![],memory_db.clone());
+        apply_block(header,vec![],memory_db.clone(),best_header.state_root());
     }
 
     #[test]

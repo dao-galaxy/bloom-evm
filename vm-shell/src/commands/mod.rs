@@ -94,10 +94,10 @@ impl Subcommand {
 
 		let mut backend = match root == H256::zero() {
 			true => {
-				state::State::new(&vicinity,db,factories)
+				state::State::new(vicinity,db,factories)
 			},
 			false => {
-				state::State::from_existing(root,&vicinity,db,factories).unwrap()
+				state::State::from_existing(root,vicinity,db,factories).unwrap()
 			}
 		};
 

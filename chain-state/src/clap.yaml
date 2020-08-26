@@ -1,0 +1,47 @@
+name: bloom-driver
+version: "0.1.0"
+author: Buffalo Lv <lvqinghao@163.com>
+about: Does awesome things of blockchain
+settings:
+  - ArgRequiredElseHelp
+args:
+  - config:
+      short: c
+      long: config
+      value_name: FILE
+      about: Sets custom config file
+      takes_value: true
+  - verbose:
+      short: v
+      long: verbose
+      multiple: true
+      about: Sets the level of verbosity
+      takes_value: false
+  - data-dir:
+      short: d
+      long: data-dir
+      value_name: Directory
+      about: Sets path of data directory
+      takes_value: true
+  - ip-addr:
+      short: a
+      long: ip-addr
+      value_name: IPv4-Address
+      about: Sets IPv4 address
+      takes_value: true
+  - consensus-port:
+      short: p
+      long: consensus-port
+      about: Sets port number for p2p network (default 8050)
+      takes_value: true
+  - query-port:
+      short: q
+      long: query-port
+      about: Sets port number for query/rpc-proxy (default 9050)
+      takes_value: true
+  - log:
+      short: l
+      long: log
+      about: Sets log level
+      takes_value: true
+      possible_values: [ debug, info, error, warn, trace ]

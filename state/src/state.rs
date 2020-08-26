@@ -18,8 +18,8 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use kvdb::DBTransaction;
 
 
-pub struct State<'vicinity> {
-    vicinity: &'vicinity BackendVicinity,
+pub struct State {
+    vicinity: BackendVicinity,
     /// Backing database.
     db: Box<dyn JournalDB>,
     root: H256,
@@ -27,10 +27,10 @@ pub struct State<'vicinity> {
     logs: Vec<Log>,
 }
 
-impl<'vicinity> Clone for State<'vicinity> {
+impl Clone for State {
     fn clone(&self) -> Self {
         State {
-            vicinity: self.vicinity,
+            vicinity: self.vicinity.clone(),
             db: self.db.boxed_clone(),
             root: self.root.clone(),
             factories: self.factories.clone(),
@@ -39,8 +39,8 @@ impl<'vicinity> Clone for State<'vicinity> {
     }
 }
 
-impl<'vicinity> State<'vicinity> {
-    pub fn new(vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> Self {
+impl State {
+    pub fn new(vicinity: BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> Self {
         let root = ethtrie::RlpNodeCodec::hashed_null_node();
 
         let mut s = State{
@@ -52,6 +52,10 @@ impl<'vicinity> State<'vicinity> {
         };
         //Self::init_genesis(&mut s);
         s
+    }
+
+    pub fn setVicinity(&mut self,vicinity: BackendVicinity) {
+        self.vicinity = vicinity;
     }
 
     fn init_genesis(&mut self) {
@@ -78,7 +82,7 @@ impl<'vicinity> State<'vicinity> {
         println!("init genesis state, root={:?}",root);
     }
 
-    pub fn from_existing(root: H256, vicinity: &'vicinity BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> TrieResult<State> {
+    pub fn from_existing(root: H256, vicinity: BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> TrieResult<State> {
         if !db.as_hash_db().contains(&root, hash_db::EMPTY_PREFIX) {
             return Err(Box::new(TrieError::InvalidStateRoot(root)));
         }
@@ -183,7 +187,7 @@ impl<'vicinity> State<'vicinity> {
     }
 }
 
-impl <'vicinity> Backend for State<'vicinity> {
+impl Backend for State {
     fn gas_price(&self) -> U256 {self.vicinity.gas_price}
     fn origin(&self) -> H160 {self.vicinity.origin}
     fn block_hash(&self, number: U256) -> H256  {
@@ -308,7 +312,7 @@ impl <'vicinity> Backend for State<'vicinity> {
 }
 
 
-impl<'vicinity> ApplyBackend for State <'vicinity> {
+impl ApplyBackend for State {
     fn apply<A, I, L>(
         &mut self,
         values: A,
@@ -393,7 +397,7 @@ mod tests {
     use evm::executor::StackExecutor;
     use evm::Config;
     use evm::backend::{Basic,Log,Backend,ApplyBackend,Apply};
-
+    use bloom_db;
 
 
 
@@ -406,7 +410,7 @@ mod tests {
         let dataPath = "test-db";
         let mut config = DatabaseConfig::with_columns(COLUMN_COUNT);
         let database = Arc::new(Database::open(&config, dataPath).unwrap());
-        let mut db = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
+        let mut db = journaldb::new(database,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
         let trie_layout = ethtrie::Layout::default();
         let trie_spec = TrieSpec::default();
 
@@ -431,7 +435,7 @@ mod tests {
             accountdb: account_factory,
         };
 
-        let mut state = State::new(&vicinity,db,factories);
+        let mut state = State::new(vicinity,db,factories);
         let address = H160::from_str("0000000000000000000000000000000000000001").expect("not valid address");
         let value = U256::from_dec_str("10").expect("");
 

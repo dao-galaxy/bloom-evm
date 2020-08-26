@@ -23,6 +23,8 @@ ethtrie = {package = "patricia-trie-ethereum", path = "../patricia-trie-ethereum
 evm-executer = {package = "executer", path = "../executer"}
 
 bloom-db = {path = "../db"}
+clap = { version = "3.0.0-beta.1", features = ["yaml"] }
+env_logger = "0.7"
 
 [build-dependencies.cc]
 version = ">= 1.0.28, <= 1.0.41"
