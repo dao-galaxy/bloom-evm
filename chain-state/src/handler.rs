@@ -20,6 +20,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
                 return IpcReply::default();
             }
             let req = req.unwrap();
+            println!("CreateHeader,{:?}",req.clone());
             let resp = create_header(req,db);
             return IpcReply {
                 id: request.id,
@@ -32,7 +33,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
                 return IpcReply::default();
             }
             let req = req.unwrap();
-
+            println!("LatestBlocks,{:?}",req.clone());
             let resp = latest_blocks(req,blockchain);
             return IpcReply {
                 id: request.id,
@@ -45,6 +46,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
                 return IpcReply::default();
             }
             let req = req.unwrap();
+            println!("ApplyBlock,{:?}",req.clone());
             let resp = apply_block(req,db,blockchain);
             return IpcReply {
                 id: request.id,
@@ -57,6 +59,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
                 return IpcReply::default();
             }
             let req = req.unwrap();
+            println!("AccountInfo,{:?}",req.clone());
             let resp = account_info(req,db,blockchain);
             return IpcReply {
                 id: request.id,
@@ -64,6 +67,7 @@ pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut
             }
         },
         _ => {
+            println!("Wrong command");
             return IpcReply::default()
         }
     }

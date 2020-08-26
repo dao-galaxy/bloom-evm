@@ -74,6 +74,7 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if let Some((d, rc)) = self.overlay.raw(key, prefix) {
 			if rc > 0 {
+				println!("found it");
 				return Some(d.clone());
 			}
 		}
@@ -209,7 +210,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{JournalDB, drain_overlay, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch,new,Algorithm};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -470,5 +471,15 @@ mod tests {
 		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
+	}
+
+	#[test]
+	fn clone_test() {
+		let mut jdb = Box::new(new(Arc::new(kvdb_memorydb::create(1)),Algorithm::Archive,0));
+		let key = jdb.insert(EMPTY_PREFIX, b"dog");
+
+		let other = jdb.boxed_clone();
+		assert_eq!(other.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
+
 	}
 }

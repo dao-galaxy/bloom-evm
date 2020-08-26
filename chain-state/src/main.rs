@@ -45,11 +45,11 @@ pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain
         let mut received_parts = socket.recv_multipart(0).unwrap();
         let msg_bytes = received_parts.pop().unwrap();
         let zmq_identity = received_parts.pop().unwrap();
-        println!(
-            "chain-state thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
-            zmq_identity,
-            msg_bytes
-        );
+        // println!(
+        //     "chain-state thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
+        //     zmq_identity,
+        //     msg_bytes
+        // );
 
         let result = handler::handler(msg_bytes.clone(),db.clone(), blockchain);
         let result_data = result.rlp_bytes();

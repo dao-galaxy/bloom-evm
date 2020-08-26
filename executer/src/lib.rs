@@ -277,8 +277,9 @@ pub fn execute_transaction(
 
     let mut total_gas_used = U256::zero();
     let mut new_state_trie_root = state_trie_root;
-
+    let mut jdb = journal_db.boxed_clone();
     for tx in transactions {
+        let db = jdb.boxed_clone();
         let vicinity = BackendVicinity {
             gas_price: tx.gas_price,
             origin: tx.sender(),
@@ -290,12 +291,12 @@ pub fn execute_transaction(
             block_difficulty: header.difficulty(),
             block_gas_limit: header.gas_limit(),
         };
-        println!("state root={:?}",state_trie_root);
+        println!("state root={:?}",new_state_trie_root);
         let mut backend =
             if new_state_trie_root == KECCAK_NULL_RLP {
-                State::new(&vicinity, journal_db.boxed_clone(), factories.clone())
+                State::new(&vicinity, db, factories.clone())
             } else {
-                State::from_existing(new_state_trie_root, &vicinity, journal_db.boxed_clone(), factories.clone()).unwrap()
+                State::from_existing(new_state_trie_root, &vicinity, db, factories.clone()).unwrap()
             };
 
         let from = tx.sender();
@@ -373,6 +374,7 @@ pub fn execute_transaction(
             backend.commit();
         }
         new_state_trie_root = backend.root();
+        jdb = db.boxed_clone();
     }
 
     (total_gas_used, new_state_trie_root)
