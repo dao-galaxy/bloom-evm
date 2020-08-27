@@ -251,7 +251,7 @@ pub fn create_header(
             header.set_gas_limit(gas_limit);
             header.set_difficulty(difficulty);
             header.set_parent_hash(parent_header.hash());
-            let (total_gas_used, new_state_trie_root) = execute_transaction(
+            let (total_gas_used,new_state_trie_root) = execute_transaction(
                 false,
                 &mut header,
                 root,
@@ -276,6 +276,7 @@ pub fn execute_transaction(
     journal_db : Box<dyn JournalDB> ) -> (U256, H256) {
 
     let mut total_gas_used = U256::zero();
+    let mut transaction_fee = U256::zero();
     let mut new_state_trie_root = state_trie_root;
     let vicinity = BackendVicinity::default();
     let mut backend =
@@ -308,13 +309,6 @@ pub fn execute_transaction(
         let gas_price = tx.gas_price;
         let nonce = Some(tx.nonce);
 
-        let config = Config::istanbul();
-        let executor = StackExecutor::new(
-            &mut backend,
-            gas_limit as usize,
-            &config,
-        );
-
         match to {
             None => {
                 let (contract_address,gas_left) = execute_evm(
@@ -341,6 +335,7 @@ pub fn execute_transaction(
                     &mut backend
                 ).expect("Create contract failed");
                 let gas_used = gas_limit - gas_left as u32;
+                transaction_fee = transaction_fee + U256::from(gas_used) * gas_price;
                 total_gas_used = total_gas_used + U256::from(gas_used);
             },
 
@@ -369,9 +364,19 @@ pub fn execute_transaction(
                 ).expect("Call message failed");
 
                 let gas_used = gas_limit - gas_left as u32;
+                transaction_fee = transaction_fee + U256::from(gas_used) * gas_price;
                 total_gas_used = total_gas_used + U256::from(gas_used);
             }
         }
+
+
+        let config = Config::istanbul();
+        let mut executor = StackExecutor::new(
+            &mut backend,
+            gas_limit as usize,
+            &config,
+        );
+        executor.deposit(header.author(),transaction_fee);
         if commit {
             backend.commit();
         }
