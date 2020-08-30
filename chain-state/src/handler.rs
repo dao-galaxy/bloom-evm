@@ -90,7 +90,7 @@ fn create_header(req: CreateHeaderReq, db: Arc<dyn (::kvdb::KeyValueDB)>) -> Cre
     CreateHeaderResp(header)
 }
 
-fn latest_blocks(req: LatestBlocksReq, blockchain: &BlockChain) -> LatestBlocksResp {
+pub fn latest_blocks(req: LatestBlocksReq, blockchain: &BlockChain) -> LatestBlocksResp {
     let n = if req.0 <= 0 { 1 } else { req.0 };
     let block_block_number = blockchain.best_block_number();
     let mut headers: Vec<Header> = vec![];
@@ -123,9 +123,9 @@ fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut Bl
     ApplyBlockResp(true)
 }
 
-fn account_info(req: AccountInfoReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut BlockChain ) -> AccountInfoResp {
+pub fn account_info(req: AccountInfoReq, db: Arc<dyn (::kvdb::KeyValueDB)>, bc: &BlockChain ) -> AccountInfoResp {
     let best_header = bc.best_block_header();
     let state_root = best_header.state_root();
-    let (nonce,balance) = evm_executer::account_info(req.0,db,state_root);
-    AccountInfoResp(nonce,balance)
+    let (nonce, balance) = evm_executer::account_info(req.0, db, state_root);
+    AccountInfoResp(nonce, balance)
 }
