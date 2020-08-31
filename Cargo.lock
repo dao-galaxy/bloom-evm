@@ -377,11 +377,16 @@ dependencies = [
  "ethereum-types",
  "executer",
  "hex-literal",
+ "indexmap",
  "kvdb",
  "kvdb-rocksdb",
  "log",
  "protobuf",
  "rlp",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "toml 0.5.6",
  "zmq",
 ]
 
@@ -1485,7 +1490,7 @@ checksum = "73b122901b3a675fac8cecf68dcb2f0d3036193bc861d1ac0e1c337f7d5254c2"
 dependencies = [
  "error-chain",
  "pkg-config",
- "toml",
+ "toml 0.2.1",
 ]
 
 [[package]]
@@ -2806,6 +2811,15 @@ name = "toml"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "736b60249cb25337bc196faa43ee12c705e426f3d55c214d73a4e7be06f92cb4"
+
+[[package]]
+name = "toml"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "trie-db"

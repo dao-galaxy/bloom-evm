@@ -1,6 +1,7 @@
 
 mod handler;
 mod query_service;
+mod config;
 
 use zmq::{Context, DEALER, ROUTER};
 use common_types::ipc::IpcReply;
@@ -12,60 +13,63 @@ use std::{thread, env};
 use clap::{App, load_yaml, ArgMatches, Arg};
 use log::info;
 use env_logger;
+use crate::config::*;
 
-// const DATA_PATH: &'static str = "chain-data";
-
+// ./target/debug/bloom-chain -c chain-state/src/bloom.conf
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("clap.yaml");  // src/clap.yaml
     let matches = App::from(yaml).get_matches();
+    let config_file = matches.value_of("config").unwrap_or("chain-state/src/bloom.conf");
+    // target/debug/bloom-solo -c src/bloom.conf
+    let toml_string = read_config_file(config_file);
+    let decoded_config = parse_config_string(toml_string.as_str());
+    let decoded_config_clone = decoded_config.clone();
 
-    let log_level = matches.value_of("log").unwrap_or("debug");
-    env::set_var("RUST_LOG", log_level);
+    let mut log_level = matches.value_of("log").unwrap_or(
+        &decoded_config.log_level.unwrap_or("debug".to_string())
+    ).to_string();
+
+    env::set_var("RUST_LOG", log_level.as_str());
     env_logger::init();
-    info!("log level: {:?}", log_level);
+    info!("log level: {:?}", log_level.as_str());
     info!("{:#?}", matches);
+    info!("{:#?}", decoded_config_clone);
 
-    // Gets a value for config if supplied by user, or defaults to "bloom.conf"
-    let config = matches.value_of("config").unwrap_or("bloom.conf");
-    info!("config: {:?}", config);
-    //let nodes_number = hex::decode(matches.value_of("nodes").unwrap()).unwrap();
-    //println!("{:?}", nodes_number);
-    let data_dir = matches.value_of("data-dir").unwrap_or("chain-data");
+    let data_dir = matches.value_of("data-dir").unwrap_or(
+        &decoded_config.data_directory.unwrap_or("chain-data".to_string())
+    ).to_string();
     info!("data directory: {:?}", data_dir);
-    let ip = matches.value_of("ip-addr").unwrap_or("127.0.0.1");
-    info!("ip address: {:?}", ip);
-    let consensus_port = matches.value_of("consensus-port").unwrap_or("8050");
-    info!("consensus port: {:?}", consensus_port);
-    let query_port = matches.value_of("query_port").unwrap_or("9050");
-    info!("query port: {:?}", query_port);
+
+    let chain_socket_str = decoded_config.chain_socket.unwrap_or("tcp://127.0.0.1:8050".to_string());
+    info!("consensus end point: {}", chain_socket_str);
+
+    let query_socket_str = decoded_config.query_socket.unwrap_or("tcp://127.0.0.1:8050".to_string());
+    info!("query end point: {}", query_socket_str);
 
 
+    let consensus = decoded_config.consensus.unwrap_or("solo".to_string());
+    let my_peer_index = decoded_config.index.unwrap_or(0);
+    let block_duration = decoded_config.block_duration.unwrap_or(5);
 
-    // let ip = std::env::args().nth(1).expect("no given ip");
-    // let consensus_port = std::env::args().nth(2).expect("no given consensus port");
-    // let query_port = std::env::args().nth(3).expect("no given query port");
-    let consensus_end_point = String::from("tcp://") + ip + ":" + consensus_port;
-    info!("consensus end point: {}", consensus_end_point);
-
-    let query_end_point = String::from("tcp://") + ip + ":" + query_port;
-    info!("query end point: {}", query_end_point);
+    info!("my peer index: {:?}", my_peer_index);
+    info!("block duration (period, time interval): {:?}", block_duration);
 
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
-    let database = Arc::new(Database::open(&config, data_dir).unwrap());
+    let database = Arc::new(Database::open(&config, data_dir.as_str()).unwrap());
 
     // run query service
     let db = database.clone();
     thread::spawn(move ||{
-        query_service::run_query_service(query_end_point.as_str(),db);
+        query_service::run_query_service(query_socket_str.as_str(), db);
     });
 
     // run consensus service
     let mut blockchain = BlockChain::new(database.clone());
-    run_server(consensus_end_point.as_str(),database.clone(),&mut blockchain);
+    run_chain_service(chain_socket_str.as_str(), database.clone(), &mut blockchain);
 }
 
-pub fn run_server(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain) {
+pub fn run_chain_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain) {
     let context = Context::new();
     let socket = context.socket(ROUTER).unwrap();
     socket.bind(end_point).unwrap();
