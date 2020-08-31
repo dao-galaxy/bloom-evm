@@ -44,7 +44,7 @@ fn main() {
     let chain_socket_str = decoded_config.chain_socket.unwrap_or("tcp://127.0.0.1:8050".to_string());
     info!("consensus end point: {}", chain_socket_str);
 
-    let query_socket_str = decoded_config.query_socket.unwrap_or("tcp://127.0.0.1:8050".to_string());
+    let query_socket_str = decoded_config.query_socket.unwrap_or("tcp://127.0.0.1:9050".to_string());
     info!("query end point: {}", query_socket_str);
 
 
