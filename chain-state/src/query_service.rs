@@ -60,7 +60,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
             if !req.is_err() {
                 let req = req.unwrap();
                 println!("LatestBlocks,{:?}", req.clone());
-                let resp = block_tx_list(req, &blockchain);
+                let resp = block_tx_hash_list(req, &blockchain);
                 ret = IpcReply {
                     id: request.id,
                     result: rlp::encode(&resp),
@@ -74,7 +74,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
     ret
 }
 
-pub fn block_tx_list(req: TxHashListReq, blockchain: &BlockChain) -> TxHashListResp {
+pub fn block_tx_hash_list(req: TxHashListReq, blockchain: &BlockChain) -> TxHashListResp {
     let block_hash = req.0;
     let list = blockchain.transaction_hash_list_by_block_hash(block_hash);
     let mut hash_list: Vec<H256> = vec![];
