@@ -27,7 +27,7 @@ pub fn run_query_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, ct
     }
 }
 
-fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
+fn query_handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
     let blockchain = BlockChain::new(db.clone());
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
     let mut ret = IpcReply::default();
@@ -36,6 +36,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
             let req: Result<AccountInfoReq, DecoderError> = rlp::decode(request.params.as_slice());
             if !req.is_err() {
                 let req = req.unwrap();
+                println!("AccountInfo, {:?}", req.clone());
                 let resp = account_info(req, db, &blockchain);
                 ret = IpcReply {
                     id: request.id,
@@ -47,7 +48,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
             let req: Result<LatestBlocksReq, DecoderError> = rlp::decode(request.params.as_slice());
             if !req.is_err() {
                 let req = req.unwrap();
-                println!("LatestBlocks,{:?}", req.clone());
+                println!("LatestBlocks, {:?}", req.clone());
                 let resp = latest_blocks(req, &blockchain);
                 ret = IpcReply {
                     id: request.id,
@@ -59,7 +60,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
             let req: Result<TxHashListReq, DecoderError> = rlp::decode(request.params.as_slice());
             if !req.is_err() {
                 let req = req.unwrap();
-                println!("LatestBlocks,{:?}", req.clone());
+                println!("TxHashList, {:?}", req.clone());
                 let resp = block_tx_hash_list(req, &blockchain);
                 ret = IpcReply {
                     id: request.id,
@@ -68,7 +69,7 @@ fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
             }
         },
         _ => {
-            ret = IpcReply::default();
+            println!("Error: Invalid Request!");
         },
     }
     ret

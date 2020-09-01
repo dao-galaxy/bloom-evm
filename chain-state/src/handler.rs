@@ -10,67 +10,65 @@ use common_types::header::Header;
 use common_types::block::Block;
 use rlp::DecoderError;
 
-pub fn handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut BlockChain) -> IpcReply {
+pub fn handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain: &mut BlockChain) -> IpcReply {
 
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
+    let mut ret = IpcReply::default();
     match request.method.as_str() {
         "CreateHeader" => {
             let req: Result<CreateHeaderReq,DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("CreateHeader, {:?}", req.clone());
+                let resp = create_header(req, db);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp),
+                }
             }
-            let req = req.unwrap();
-            println!("CreateHeader,{:?}",req.clone());
-            let resp = create_header(req,db);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp),
-            }
+
         },
         "LatestBlocks" => {
             let req: Result<LatestBlocksReq,DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
-            }
-            let req = req.unwrap();
-            println!("LatestBlocks,{:?}",req.clone());
-            let resp = latest_blocks(req,blockchain);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp),
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("LatestBlocks, {:?}", req.clone());
+                let resp = latest_blocks(req, blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp),
+                }
             }
         },
         "ApplyBlock" => {
             let req: Result<ApplyBlockReq,DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
-            }
-            let req = req.unwrap();
-            println!("ApplyBlock,{:?}",req.clone());
-            let resp = apply_block(req,db,blockchain);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp),
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("ApplyBlock, {:?}", req.clone());
+                let resp = apply_block(req, db, blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp),
+                }
             }
         },
         "AccountInfo" => {
             let req: Result<AccountInfoReq,DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
-            }
-            let req = req.unwrap();
-            println!("AccountInfo,{:?}",req.clone());
-            let resp = account_info(req,db,blockchain);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp)
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("AccountInfo, {:?}", req.clone());
+                let resp = account_info(req, db, blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp)
+                }
             }
         },
         _ => {
-            println!("Wrong command");
-            return IpcReply::default()
-        }
+            println!("Error: Invalid Request!");
+        },
     }
+    ret
 }
 
 fn create_header(req: CreateHeaderReq, db: Arc<dyn (::kvdb::KeyValueDB)>) -> CreateHeaderResp {
@@ -114,7 +112,7 @@ fn apply_block(req: ApplyBlockReq, db: Arc<dyn (::kvdb::KeyValueDB)>,bc: &mut Bl
 
     let best_header = bc.best_block_header();
     let mut root = best_header.state_root();
-    evm_executer::apply_block(req.0.clone(),signed_trx.clone(),db,root);
+    evm_executer::apply_block(req.0.clone(), signed_trx.clone(), db, root);
 
     let mut block = Block::default();
     block.header = req.0.clone();
