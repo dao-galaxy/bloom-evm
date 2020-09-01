@@ -5,6 +5,7 @@ use kvdb_rocksdb::{Database,DatabaseConfig};
 use std::sync::Arc;
 use blockchain_db::BlockChain;
 use crate::handler::{latest_blocks, account_info};
+use ethereum_types::H256;
 
 pub fn run_query_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, ctxt: Context) {
     let socket = ctxt.socket(ROUTER).unwrap();
@@ -27,39 +28,60 @@ pub fn run_query_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, ct
 }
 
 fn query_handler(data: Vec<u8>,db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
-
     let blockchain = BlockChain::new(db.clone());
-
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
+    let mut ret = IpcReply::default();
     match request.method.as_str() {
         "AccountInfo" => {
             let req: Result<AccountInfoReq, DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
-            }
-            let req = req.unwrap();
-            let resp = account_info(req, db, &blockchain);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp)
+            if !req.is_err() {
+                let req = req.unwrap();
+                let resp = account_info(req, db, &blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp)
+                };
             }
         },
         "LatestBlocks" => {
             let req: Result<LatestBlocksReq, DecoderError> = rlp::decode(request.params.as_slice());
-            if req.is_err() {
-                return IpcReply::default();
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("LatestBlocks,{:?}", req.clone());
+                let resp = latest_blocks(req, &blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp),
+                };
             }
-            let req = req.unwrap();
-            println!("LatestBlocks,{:?}", req.clone());
-            let resp = latest_blocks(req, &blockchain);
-            return IpcReply {
-                id: request.id,
-                result: rlp::encode(&resp),
+        },
+        "TxHashList" => {
+            let req: Result<TxHashListReq, DecoderError> = rlp::decode(request.params.as_slice());
+            if !req.is_err() {
+                let req = req.unwrap();
+                println!("LatestBlocks,{:?}", req.clone());
+                let resp = block_tx_list(req, &blockchain);
+                ret = IpcReply {
+                    id: request.id,
+                    result: rlp::encode(&resp),
+                };
             }
         },
         _ => {
-            return IpcReply::default()
-        }
+            ret = IpcReply::default();
+        },
     }
+    ret
 }
+
+pub fn block_tx_list(req: TxHashListReq, blockchain: &BlockChain) -> TxHashListResp {
+    let block_hash = req.0;
+    let list = blockchain.transaction_hash_list_by_block_hash(block_hash);
+    let mut hash_list: Vec<H256> = vec![];
+    let x = list.unwrap().transactions().clone();
+
+    TxHashListResp(x)
+}
+
+
 
