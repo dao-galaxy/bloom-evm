@@ -14,6 +14,7 @@ use clap::{App, load_yaml, ArgMatches, Arg};
 use log::info;
 use env_logger;
 use crate::config::*;
+use query_service::run_query_service;
 
 // ./target/debug/bloom-chain -c chain-state/src/bloom.conf
 fn main() {
@@ -58,20 +59,34 @@ fn main() {
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, data_dir.as_str()).unwrap());
 
+    let context = Context::new();
+
     // run query service
     let db = database.clone();
-    thread::spawn(move ||{
-        query_service::run_query_service(query_socket_str.as_str(), db);
+    let ctxt = context.clone();
+    let query_thread = thread::spawn(move ||{
+        run_query_service(query_socket_str.as_str(), db, ctxt);
     });
 
     // run consensus service
-    let mut blockchain = BlockChain::new(database.clone());
-    run_chain_service(chain_socket_str.as_str(), database.clone(), &mut blockchain);
+    let db = database.clone();
+    let mut blockchain = BlockChain::new(db);
+    let db = database.clone();
+    let ctxt = context.clone();
+    let chain_thread = thread::spawn(move || {
+        run_chain_service(chain_socket_str.as_str(), db, &mut blockchain, ctxt);
+    });
+
+    {
+        //TODO other things here.
+    }
+
+    query_thread.join().unwrap();
+    chain_thread.join().unwrap();
 }
 
-pub fn run_chain_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain) {
-    let context = Context::new();
-    let socket = context.socket(ROUTER).unwrap();
+pub fn run_chain_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, blockchain:&mut BlockChain, ctxt: Context) {
+    let socket = ctxt.socket(ROUTER).unwrap();
     socket.bind(end_point).unwrap();
     loop {
         let mut received_parts = socket.recv_multipart(0).unwrap();

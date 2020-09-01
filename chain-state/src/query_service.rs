@@ -6,9 +6,8 @@ use std::sync::Arc;
 use blockchain_db::BlockChain;
 use crate::handler::{latest_blocks, account_info};
 
-pub fn run_query_service(end_point : &str,db: Arc<dyn (::kvdb::KeyValueDB)> ) {
-    let context = Context::new();
-    let socket = context.socket(ROUTER).unwrap();
+pub fn run_query_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, ctxt: Context) {
+    let socket = ctxt.socket(ROUTER).unwrap();
     socket.bind(end_point).unwrap();
     loop {
         let mut received_parts = socket.recv_multipart(0).unwrap();
