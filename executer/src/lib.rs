@@ -50,6 +50,9 @@ pub enum Error
     ExitReasonFatal,
     /// Nonce is invalid
     InvalidNonce,
+
+    /// Block hash not exist
+    BlockHashNotExist,
 }
 
 /// Execute an EVM operation.
@@ -153,13 +156,6 @@ pub fn execute_transfer(
     Ok(())
 }
 
-#[derive(Debug)]
-pub enum ExecError
-{
-    /// Block hash not exist
-    BlockHashNotExist,
-}
-
 pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>,root: H256) -> (U256, U256) {
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::Generic;
@@ -191,7 +187,7 @@ pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>,root: H2
 pub fn apply_block(header: Header,
                transactions: Vec<SignedTransaction>,
                    db: Arc<dyn (::kvdb::KeyValueDB)>,
-               state_root: H256) {
+               state_root: H256) -> Result<(),Error> {
 
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::Generic;
@@ -205,8 +201,11 @@ pub fn apply_block(header: Header,
 
     let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
-    execute_transaction(true, &header, state_root, &transactions, &factories, journal_db);
-
+    let ret = execute_transaction(true, &header, state_root, &transactions, &factories, journal_db);
+    if ret.is_err() {
+        return Err(ret.err().unwrap());
+    }
+    Ok(())
 }
 
 /// create header and not commit to state to disk
@@ -218,7 +217,7 @@ pub fn create_header(
     difficulty: U256,
     transactions: Vec<SignedTransaction>,
     db: Arc<dyn (kvdb::KeyValueDB)>
-) -> Result<Header,ExecError> {
+) -> Result<Header,Error> {
 
     let trie_layout = ethtrie::Layout::default();
     let trie_spec = TrieSpec::Generic;
@@ -236,7 +235,7 @@ pub fn create_header(
     let parent_block = bc.block_by_hash(parent_block_hash);
     match parent_block  {
         None => {
-            Err(ExecError::BlockHashNotExist)
+            Err(Error::BlockHashNotExist)
         },
 
         Some(block) => {
@@ -251,7 +250,7 @@ pub fn create_header(
             header.set_gas_limit(gas_limit);
             header.set_difficulty(difficulty);
             header.set_parent_hash(parent_header.hash());
-            let (total_gas_used,new_state_trie_root) = execute_transaction(
+            let ret = execute_transaction(
                 false,
                 &mut header,
                 root,
@@ -259,6 +258,10 @@ pub fn create_header(
                 &factories,
                 journal_db
             );
+            if ret.is_err() {
+                return Err(ret.err().unwrap());
+            }
+            let (total_gas_used,new_state_trie_root) = ret.unwrap();
             header.set_gas_used(total_gas_used);
             header.set_state_root(new_state_trie_root);
             header.set_transactions_root(build_transaction_trie(transactions, &db, &factories));
@@ -273,7 +276,7 @@ pub fn execute_transaction(
     state_trie_root: H256,
     transactions: &Vec<SignedTransaction>,
     factories : &Factories,
-    journal_db : Box<dyn JournalDB> ) -> (U256, H256) {
+    journal_db : Box<dyn JournalDB> ) -> Result<(U256, H256),Error> {
 
     let mut total_gas_used = U256::zero();
     let mut transaction_fee = U256::zero();
@@ -311,7 +314,7 @@ pub fn execute_transaction(
 
         match to {
             None => {
-                let (contract_address,gas_left) = execute_evm(
+                let ret = execute_evm(
                     from.clone(),
                     value,
                     gas_limit,
@@ -333,14 +336,18 @@ pub fn execute_transaction(
                         ((contract_addr,gas_left),retv)
                     },
                     &mut backend
-                ).expect("Create contract failed");
+                );
+                if ret.is_err() {
+                    return Err(ret.err().unwrap());
+                }
+                let (contract_address,gas_left) = ret.unwrap();
                 let gas_used = gas_limit - gas_left as u32;
                 transaction_fee = transaction_fee + U256::from(gas_used) * gas_price;
                 total_gas_used = total_gas_used + U256::from(gas_used);
             },
 
             Some(contract_address) => {
-                let gas_left = execute_evm(
+                let ret = execute_evm(
                     from,
                     value,
                     gas_limit,
@@ -361,8 +368,11 @@ pub fn execute_transaction(
                         (gas_left, retv)
                     },
                     &mut backend
-                ).expect("Call message failed");
-
+                );
+                if ret.is_err() {
+                    return Err(ret.err().unwrap());
+                }
+                let gas_left = ret.unwrap();
                 let gas_used = gas_limit - gas_left as u32;
                 transaction_fee = transaction_fee + U256::from(gas_used) * gas_price;
                 total_gas_used = total_gas_used + U256::from(gas_used);
@@ -383,7 +393,7 @@ pub fn execute_transaction(
         new_state_trie_root = backend.root();
     }
 
-    (total_gas_used, new_state_trie_root)
+    Ok((total_gas_used, new_state_trie_root))
 }
 
 pub fn build_transaction_trie(transactions: Vec<SignedTransaction>, db: &Arc<dyn (kvdb::KeyValueDB)>, factories : &Factories) -> H256 {

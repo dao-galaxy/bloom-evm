@@ -30,7 +30,12 @@ pub fn run_query_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, ct
 fn query_handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
     let blockchain = BlockChain::new(db.clone());
     let request: IpcRequest = rlp::decode(data.as_slice()).unwrap();
-    let mut ret = IpcReply::default();
+    let errResp = MessageResp(String::from("error"));
+    let mut ret = IpcReply{
+        id: request.id,
+        status: 1,
+        result: rlp::encode(&errResp),
+    };
     match request.method.as_str() {
         "AccountInfo" => {
             let req: Result<AccountInfoReq, DecoderError> = rlp::decode(request.params.as_slice());
@@ -40,6 +45,7 @@ fn query_handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
                 let resp = account_info(req, db, &blockchain);
                 ret = IpcReply {
                     id: request.id,
+                    status:0,
                     result: rlp::encode(&resp)
                 };
             }
@@ -52,6 +58,7 @@ fn query_handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
                 let resp = latest_blocks(req, &blockchain);
                 ret = IpcReply {
                     id: request.id,
+                    status:0,
                     result: rlp::encode(&resp),
                 };
             }
@@ -64,6 +71,7 @@ fn query_handler(data: Vec<u8>, db: Arc<dyn (::kvdb::KeyValueDB)>) -> IpcReply {
                 let resp = block_tx_hash_list(req, &blockchain);
                 ret = IpcReply {
                     id: request.id,
+                    status:0,
                     result: rlp::encode(&resp),
                 };
             }
