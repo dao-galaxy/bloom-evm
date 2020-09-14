@@ -74,7 +74,6 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if let Some((d, rc)) = self.overlay.raw(key, prefix) {
 			if rc > 0 {
-				println!("found it");
 				return Some(d.clone());
 			}
 		}

@@ -60,6 +60,25 @@ impl BlockChain {
         bc
     }
 
+    pub fn init_genesis(&mut self,genesis_header: Header) {
+        let mut batch = DBTransaction::new();
+        let hash = genesis_header.hash();
+        batch.put(bloom_db::COL_HEADERS, hash.as_bytes(), genesis_header.encoded().as_slice());
+
+        let genesis_block_transactions = TransactionHashList::default();
+
+        batch.write(bloom_db::COL_BODIES, &hash,&genesis_block_transactions);
+
+        let block_number: BlockNumber = genesis_header.number();
+        let mut block_hash_list = BlockHashList::default();
+        block_hash_list.push(hash);
+
+        batch.write(bloom_db::COL_EXTRA,&block_number,&block_hash_list);
+        batch.put(bloom_db::COL_EXTRA,b"best",hash.as_bytes());
+
+        self.db.write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
+    }
+
     pub fn get_header_by_blockhash(&self, hash: H256) -> Option<Header> {
         self.db.read(bloom_db::COL_HEADERS,&hash)
     }

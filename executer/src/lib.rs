@@ -412,6 +412,46 @@ pub fn build_transaction_trie(transactions: Vec<SignedTransaction>, db: &Arc<dyn
     transaction_trie_root
 }
 
+pub fn init_genesis(db: Arc<dyn (kvdb::KeyValueDB)>, init_data: Vec<(Address,U256)>) {
+    let trie_layout = ethtrie::Layout::default();
+    let trie_spec = TrieSpec::Generic;
+    let trie_factory =  ethtrie::TrieFactory::new(trie_spec,trie_layout);
+
+    let account_factory = AccountFactory::default();
+    let factories = Factories{
+        trie: trie_factory,
+        accountdb: account_factory,
+    };
+
+    let mut bc = BlockChain::new(db.clone());
+    let mut journal_db = journaldb::new(db.clone(),journaldb::Algorithm::Archive,bloom_db::COL_STATE);
+    let vicinity = BackendVicinity::default();
+    let mut backend = State::new(vicinity, journal_db, factories.clone());
+
+    // create executor env
+    let config = Config::istanbul();
+    let gas_limit = 100000;
+    let mut executor = StackExecutor::new(
+        &backend,
+        gas_limit as usize,
+        &config,
+    );
+    for data in init_data.iter() {
+        let address = data.0;
+        let value = data.1;
+        executor.deposit(address,value);
+    }
+
+    // commit
+    let (values, logs) = executor.deconstruct();
+    backend.apply(values, logs, true);
+    let root = backend.commit();
+
+    let mut genesis_header = Header::genesis();
+    genesis_header.set_state_root(root);
+    bc.init_genesis(genesis_header);
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -2,6 +2,7 @@
 mod handler;
 mod query_service;
 mod config;
+mod genesis;
 
 use zmq::{Context, DEALER, ROUTER};
 use common_types::ipc::IpcReply;
@@ -10,10 +11,12 @@ use kvdb_rocksdb::{Database,DatabaseConfig};
 use std::sync::Arc;
 use blockchain_db::BlockChain;
 use std::{thread, env};
+use std::path::Path;
 use clap::{App, load_yaml, ArgMatches, Arg};
 use log::info;
 use env_logger;
 use crate::config::*;
+
 use query_service::run_query_service;
 
 // ./target/debug/bloom-chain -c chain-state/src/bloom.conf
@@ -56,9 +59,13 @@ fn main() {
     info!("my peer index: {:?}", my_peer_index);
     info!("block duration (period, time interval): {:?}", block_duration);
 
+    let is_data_path_exist = Path::new(&data_dir).exists();
     let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
     let database = Arc::new(Database::open(&config, data_dir.as_str()).unwrap());
-
+    if !is_data_path_exist {
+        info!("init data");
+        genesis::init_genesis(database.clone(),decoded_config.accounts.unwrap_or(vec![]));
+    }
     let context = Context::new();
 
     // run query service
@@ -117,7 +124,7 @@ mod tests {
     use rlp;
     use hex_literal::hex;
 
-    const END_POINT : &'static str = "tcp://127.0.0.1:8060";
+    const END_POINT : &'static str = "tcp://127.0.0.1:9050";
 
     #[test]
     fn account_info_test(){
