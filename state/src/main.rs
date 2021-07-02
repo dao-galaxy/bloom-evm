@@ -23,6 +23,7 @@ use std::str::FromStr;
 
 
 fn main(){
+    // before calling main, rm -rf test-db
     write();
     read();
 }
