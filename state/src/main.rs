@@ -23,7 +23,7 @@ use std::str::FromStr;
 
 
 fn main(){
-
+    write();
     read();
 }
 
