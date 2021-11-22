@@ -1,5 +1,5 @@
 [package]
-name = "bloom-evm"
+name = "evmshell"
 version = "0.1.0"
 authors = ["foobar <foobar0@example.com>"]
 edition = "2018"
@@ -30,5 +30,5 @@ env_logger = "0.7"
 version = ">= 1.0.28, <= 1.0.41"
 
 [[bin]]
-name = "bloom-evm"
+name = "evmshell"
 path = "./src/main.rs"
