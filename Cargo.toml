@@ -1,6 +1,6 @@
 
 [workspace]
 members = [
-    "chain-state",
-    "vm-shell"
+    "chainstate",
+    "evmshell"
 ]

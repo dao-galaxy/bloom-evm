@@ -19,12 +19,12 @@ use crate::config::*;
 
 use query_service::run_query_service;
 
-// ./target/debug/bloom-chain -c chain-state/src/bloom.conf
+// ./target/debug/bloom-chain -c chainstate/src/bloom.conf
 fn main() {
     // The YAML file is found relative to the current file, similar to how modules are found
     let yaml = load_yaml!("clap.yaml");  // src/clap.yaml
     let matches = App::from(yaml).get_matches();
-    let config_file = matches.value_of("config").unwrap_or("chain-state/src/bloom.conf");
+    let config_file = matches.value_of("config").unwrap_or("chainstate/src/bloom.conf");
     // target/debug/bloom-solo -c src/bloom.conf
     let toml_string = read_config_file(config_file);
     let decoded_config = parse_config_string(toml_string.as_str());
@@ -101,7 +101,7 @@ pub fn run_chain_service(end_point : &str, db: Arc<dyn (::kvdb::KeyValueDB)>, bl
         let zmq_identity = received_parts.pop().unwrap();
 
         info!(
-            "chain-state thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
+            "chainstate thread, received from client, #zmq_identity: {:x?}; #msg_bytes: {:x?}",
             zmq_identity,
             msg_bytes
         );
