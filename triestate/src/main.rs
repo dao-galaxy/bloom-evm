@@ -1,8 +1,3 @@
-extern crate ethereum_types;
-extern crate hash_db;
-extern crate keccak_hasher;
-extern crate rlp;
-
 
 use memory_db::{MemoryDB, PrefixedKey};
 use keccak_hasher::KeccakHasher;
@@ -14,21 +9,17 @@ use hex as hhex;
 
 use kvdb_rocksdb::{Database, DatabaseConfig};
 
-
 use ethtrie;
 use trie_db::TrieSpec;
 use std::sync::Arc;
 use ethereum_types::{Address, H256, U256, H160};
 use std::str::FromStr;
 
-
 fn main() {
     // before calling main, rm -rf test-db
     write();
     read();
 }
-
-
 
 fn read(){
     let dataPath = "test-db";
