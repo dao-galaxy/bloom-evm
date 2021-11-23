@@ -139,10 +139,10 @@ impl OverlayDB {
 	fn payload(&self, key: &H256) -> Option<Payload> {
 		self.backing.get(self.column, key.as_bytes())
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|ref d| decode(d).expect("decoding db value failed") )
+			.map(|ref d| decode(d).expect("decoding kvstorage value failed") )
 	}
 
-	/// Put the refs and value of the given key, possibly deleting it from the db.
+	/// Put the refs and value of the given key, possibly deleting it from the kvstorage.
 	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: &Payload) -> bool {
 		if payload.count > 0 {
 			batch.put(self.column, key.as_bytes(), &encode(payload));

@@ -127,7 +127,7 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 #[derive(PartialEq)]
 struct JournalOverlay {
 	backing_overlay: super::MemoryDB, // Nodes added in the history period
-	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
+	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing kvstorage
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
 	earliest_era: Option<u64>,
@@ -178,7 +178,7 @@ impl OverlayRecentDB {
 		let mut earliest_era = None;
 		let mut cumulative_size = 0;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val).expect("decoding db value failed");
+			let mut era = decode::<u64>(&val).expect("decoding kvstorage value failed");
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {
@@ -344,7 +344,7 @@ impl JournalDB for OverlayRecentDB {
 			let mut canon_deletions: Vec<H256> = Vec::new();
 			let mut overlay_deletions: Vec<H256> = Vec::new();
 			for (index, mut journal) in records.drain(..).enumerate() {
-				//delete the record from the db
+				//delete the record from the kvstorage
 				let db_key = DatabaseKey {
 					era: end_era,
 					index,
@@ -411,7 +411,7 @@ impl JournalDB for OverlayRecentDB {
 					}
 					batch.delete(self.column, key.as_bytes())
 				}
-				_ => panic!("Attempted to inject invalid state ({})", rc),
+				_ => panic!("Attempted to inject invalid triestate ({})", rc),
 			}
 		}
 
@@ -941,7 +941,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 
@@ -950,7 +950,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 
@@ -958,7 +958,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = OverlayRecentDB::new(shared_db, 0);
 

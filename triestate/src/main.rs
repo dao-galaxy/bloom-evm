@@ -22,7 +22,7 @@ use ethereum_types::{Address, H256, U256, H160};
 use std::str::FromStr;
 
 
-fn main(){
+fn main() {
     // before calling main, rm -rf test-db
     write();
     read();
@@ -172,26 +172,26 @@ fn write2(){
 //
 //    #[test]
 //    fn test_rocksdb(){
-//        let dataPath = "test-db";
+//        let dataPath = "test-kvstorage";
 //        let COLUMN_COUNT = 9;
 //        let COL_STATE = 0;
 //        let mut config = DatabaseConfig::with_columns(COLUMN_COUNT);
 //        let database = Arc::new(Database::open(&config, dataPath).unwrap());
 //
-//        let mut db = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
+//        let mut kvstorage = journaldb::new(database,journaldb::Algorithm::Archive,COL_STATE);
 //
 //
 //        let mut root = H256::zero();
 //
 //        {
-//            let mut triedbmut = ethtrie::TrieDBMut::new(db.as_hash_db_mut(), &mut root);
+//            let mut triedbmut = ethtrie::TrieDBMut::new(kvstorage.as_hash_db_mut(), &mut root);
 //            triedbmut.insert(b"foo", b"bar").unwrap();
 //            triedbmut.insert(b"fog", b"b").unwrap();
 //            triedbmut.insert(b"fot", &vec![0u8;33][..]).unwrap();
 //        }
 //        {
-//            let db = &db.as_hash_db();
-//            let t = ethtrie::TrieDB::new(db, &root).unwrap();
+//            let kvstorage = &kvstorage.as_hash_db();
+//            let t = ethtrie::TrieDB::new(kvstorage, &root).unwrap();
 //            assert!(t.contains(b"foo").unwrap());
 //            assert!(t.contains(b"fog").unwrap());
 //            assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
@@ -201,19 +201,19 @@ fn write2(){
 //
 //        let root1 = root.clone();
 //        {
-//            let mut triedbmut = ethtrie::TrieDBMut::new(db.as_hash_db_mut(), &mut root);
+//            let mut triedbmut = ethtrie::TrieDBMut::new(kvstorage.as_hash_db_mut(), &mut root);
 //            triedbmut.insert(b"foo", b"bar1").unwrap();
 //        }
 //        {
-//            let db = &db.as_hash_db();
-//            let t = ethtrie::TrieDB::new(db, &root).unwrap();
+//            let kvstorage = &kvstorage.as_hash_db();
+//            let t = ethtrie::TrieDB::new(kvstorage, &root).unwrap();
 //            assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar1".to_vec());
 //        }
 //
 //        {
-//            let db = &db.as_hash_db();
+//            let kvstorage = &kvstorage.as_hash_db();
 //
-//            let t = ethtrie::TrieDB::new(db, &root1).unwrap();
+//            let t = ethtrie::TrieDB::new(kvstorage, &root1).unwrap();
 //            assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
 //        }
 //

@@ -178,7 +178,7 @@ impl Account {
 
     pub fn storage_at(&self, db: &dyn HashDB<KeccakHasher, DBValue>, key: &H256) -> TrieResult<H256> {
         let db = TrieDB::new(&db, &self.storage_root)?;
-        let decoder = |bytes: &[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
+        let decoder = |bytes: &[u8]| ::rlp::decode(&bytes).expect("decoding kvstorage value failed");
         let item: U256 = db.get_with(key.as_bytes(),decoder)?.unwrap_or_else(U256::zero);
         let value: H256 = BigEndianHash::from_uint(&item);
         Ok(value)
@@ -190,7 +190,7 @@ impl Account {
         let iter = trie.iter().unwrap();
         for pair in iter {
             let (key, val) = pair.unwrap();
-            let val = ::rlp::decode(&val).expect("decoding db val failed");
+            let val = ::rlp::decode(&val).expect("decoding kvstorage val failed");
             let value: H256 = BigEndianHash::from_uint(&val);
             let key = H256::from_slice(key.as_slice());
             pairs.insert(key,value);

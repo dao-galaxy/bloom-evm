@@ -82,14 +82,14 @@ enum RemoveFrom {
 /// insert key k:
 ///   counter already contains k: count += 1
 ///   counter doesn't contain k:
-///     backing db contains k: count = 1
-///     backing db doesn't contain k: insert into backing db, count = 0
+///     backing kvstorage contains k: count = 1
+///     backing kvstorage doesn't contain k: insert into backing kvstorage, count = 0
 /// delete key k:
 ///   counter contains k (count is asserted to be non-zero):
 ///     count > 1: counter -= 1
 ///     count == 1: remove counter
-///     count == 0: remove key from backing db
-///   counter doesn't contain k: remove key from backing db
+///     count == 0: remove key from backing kvstorage
+///   counter doesn't contain k: remove key from backing kvstorage
 /// ```
 ///
 /// Practically, this means that for each commit block turning from recent to ancient we do the
@@ -237,7 +237,7 @@ impl EarlyMergeDB {
 				},
 				Entry::Vacant(_entry) => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
-					//assert!(!Self::is_already_in(db, &h));
+					//assert!(!Self::is_already_in(kvstorage, &h));
 					batch.delete(col, h.as_bytes());
 					trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 				},
@@ -269,7 +269,7 @@ impl EarlyMergeDB {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val).expect("decoding db value failed");
+			let mut era = decode::<u64>(&val).expect("decoding kvstorage value failed");
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {
@@ -277,7 +277,7 @@ impl EarlyMergeDB {
 					index: 0usize,
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
-					let inserts = DatabaseValueView::from_rlp(&rlp_data).inserts().expect("rlp read from db; qed");
+					let inserts = DatabaseValueView::from_rlp(&rlp_data).inserts().expect("rlp read from kvstorage; qed");
 					Self::replay_keys(&inserts, db, col, &mut refs);
 					db_key.index += 1;
 				};
@@ -382,12 +382,12 @@ impl JournalDB for EarlyMergeDB {
 				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
 				.collect();
 
-			// TODO: check all removes are in the db.
+			// TODO: check all removes are in the kvstorage.
 
 			// Process the new inserts.
 			// We use the inserts for three things. For each:
 			// - we place into the backing DB or increment the counter if already in;
-			// - we note in the backing db that it was already in;
+			// - we note in the backing kvstorage that it was already in;
 			// - we write the key into our journal for this block;
 
 			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch);
@@ -427,11 +427,11 @@ impl JournalDB for EarlyMergeDB {
 			self.backing.get(self.column, &last)
 		}? {
 			let view = DatabaseValueView::from_rlp(&rlp_data);
-			let inserts = view.inserts().expect("rlp read from db; qed");
+			let inserts = view.inserts().expect("rlp read from kvstorage; qed");
 
-			if canon_id == &view.id().expect("rlp read from db; qed") {
+			if canon_id == &view.id().expect("rlp read from kvstorage; qed") {
 				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
-				let deletes = view.deletes().expect("rlp read from db; qed");
+				let deletes = view.deletes().expect("rlp read from kvstorage; qed");
 				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
 				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive);
 
@@ -491,7 +491,7 @@ impl JournalDB for EarlyMergeDB {
 					}
 					batch.delete(self.column, key.as_bytes())
 				}
-				_ => panic!("Attempted to inject invalid state."),
+				_ => panic!("Attempted to inject invalid triestate."),
 			}
 		}
 
@@ -985,7 +985,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = EarlyMergeDB::new(shared_db.clone(), 0);
 
@@ -994,7 +994,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = EarlyMergeDB::new(shared_db.clone(), 0);
 
@@ -1002,7 +1002,7 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 
-		// incantation to reopen the db
+		// incantation to reopen the kvstorage
 		}; {
 			let mut jdb = EarlyMergeDB::new(shared_db, 0);
 

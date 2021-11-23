@@ -47,7 +47,7 @@ impl Subcommand {
 			block_difficulty: U256::zero(),
 			block_gas_limit: U256::zero(),
 		};
-		let data_path = "test-db";
+		let data_path = "test-kvstorage";
 		let config = DatabaseConfig::with_columns(bloom_db::NUM_COLUMNS);
 		let database = Arc::new(Database::open(&config, data_path).unwrap());
 

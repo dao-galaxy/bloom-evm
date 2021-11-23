@@ -167,7 +167,7 @@ pub fn account_info(address: Address, db: Arc<dyn (::kvdb::KeyValueDB)>,root: H2
         accountdb: account_factory,
     };
 
-    //let mut bc = BlockChain::new(db.clone());
+    //let mut bc = BlockChain::new(kvstorage.clone());
     let mut journal_db = journaldb::new(db,journaldb::Algorithm::Archive,bloom_db::COL_STATE);
 
 
@@ -208,7 +208,7 @@ pub fn apply_block(header: Header,
     Ok(())
 }
 
-/// create header and not commit to state to disk
+/// create header and not commit to triestate to disk
 pub fn create_header(
     parent_block_hash: H256,
     author: Address,
@@ -301,7 +301,7 @@ pub fn execute_transaction(
             block_difficulty: header.difficulty(),
             block_gas_limit: header.gas_limit(),
         };
-        println!("state root={:?}",new_state_trie_root);
+        println!("triestate root={:?}",new_state_trie_root);
 
         backend.setVicinity(vicinity);
 
@@ -397,7 +397,7 @@ pub fn execute_transaction(
 }
 
 pub fn build_transaction_trie(transactions: Vec<SignedTransaction>, db: &Arc<dyn (kvdb::KeyValueDB)>, factories : &Factories) -> H256 {
-    // create transaction trie in memory-db
+    // create transaction trie in memory-kvstorage
     let mut transaction_trie_root = H256::default();
     {
         let mut journal_db = journaldb::new(db.clone(), journaldb::Algorithm::Archive, bloom_db::COL_TRANSACTION);

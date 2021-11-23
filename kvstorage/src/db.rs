@@ -22,7 +22,7 @@ pub const COL_ACCOUNT_BLOOM: u32 = 5;
 pub const COL_NODE_INFO: u32 = 6;
 /// Column for the light client chain.
 pub const COL_LIGHT_CHAIN: u32 = 7;
-/// Column for the private transactions state.
+/// Column for the private transactions triestate.
 pub const COL_PRIVATE_TRANSACTIONS_STATE: u32 = 8;
 /// Column for trx
 pub const COL_TRANSACTION: u32 = 9;
@@ -35,10 +35,10 @@ pub const NUM_COLUMNS: u32 = 11;
 
 /// Should be used to get database key associated with given value.
 pub trait Key<T> {
-    /// The db key associated with this value.
+    /// The kvstorage key associated with this value.
     type Target: AsRef<[u8]>;
 
-    /// Returns db key.
+    /// Returns kvstorage key.
     fn key(&self) -> Self::Target;
 }
 
@@ -78,8 +78,8 @@ impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
     fn read<T, R>(&self, col: u32, key: &dyn Key<T, Target = R>) -> Option<T>
         where T: rlp::Decodable, R: AsRef<[u8]> {
         self.get(col, key.key().as_ref())
-            .expect(&format!("db get failed, key: {:?}", key.key().as_ref()))
-            .map(|v| rlp::decode(&v).expect("decode db value failed") )
+            .expect(&format!("kvstorage get failed, key: {:?}", key.key().as_ref()))
+            .map(|v| rlp::decode(&v).expect("decode kvstorage value failed") )
 
     }
 
@@ -89,7 +89,7 @@ impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
         match result {
             Ok(v) => v.is_some(),
             Err(err) => {
-                panic!("db get failed, key: {:?}, err: {:?}", key.key().as_ref(), err);
+                panic!("kvstorage get failed, key: {:?}, err: {:?}", key.key().as_ref(), err);
             }
         }
     }

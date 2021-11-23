@@ -14,7 +14,7 @@ hex = "0.3.1"
 serde = { version = "1.0.101", features = ["derive"] }
 sha3 = "0.8"
 structopt = "0.3.8"
-bloom-state = {path = "../state"}
+bloom-state = {path = "../triestate" }
 journaldb = { path = "../journaldb" }
 kvdb-rocksdb = "0.7.0"
 trie-db = "0.18.0"
@@ -22,7 +22,7 @@ ethtrie = {package = "patricia-trie-ethereum", path = "../patricia-trie-ethereum
 
 evm-executer = {package = "executer", path = "../executer"}
 
-bloom-db = {path = "../db"}
+bloom-db = {path = "../kvstorage" }
 clap = { version = "3.0.0-beta.1", features = ["yaml"] }
 env_logger = "0.7"
 

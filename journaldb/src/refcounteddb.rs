@@ -72,7 +72,7 @@ impl RefCountedDB {
 	pub fn new(backing: Arc<dyn KeyValueDB>, column: u32) -> RefCountedDB {
 		let latest_era = backing.get(column, &LATEST_ERA_KEY)
 			.expect("Low-level database error.")
-			.map(|v| decode::<u64>(&v).expect("decoding db value failed"));
+			.map(|v| decode::<u64>(&v).expect("decoding kvstorage value failed"));
 
 		RefCountedDB {
 			forward: OverlayDB::new(backing.clone(), column),
@@ -175,12 +175,12 @@ impl JournalDB for RefCountedDB {
 			})?
 		} {
 			let view = DatabaseValueView::from_rlp(&rlp_data);
-			let our_id = view.id().expect("rlp read from db; qed");
+			let our_id = view.id().expect("rlp read from kvstorage; qed");
 			let to_remove = if canon_id == &our_id {
 				view.deletes()
 			} else {
 				view.inserts()
-			}.expect("rlp read from db; qed");
+			}.expect("rlp read from kvstorage; qed");
 			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, db_key.index, our_id, canon_id, to_remove);
 			for i in &to_remove {
 				self.forward.remove(i, EMPTY_PREFIX);

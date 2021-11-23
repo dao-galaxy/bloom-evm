@@ -51,11 +51,11 @@ pub struct ArchiveDB {
 }
 
 impl ArchiveDB {
-	/// Create a new instance from a key-value db.
+	/// Create a new instance from a key-value kvstorage.
 	pub fn new(backing: Arc<dyn KeyValueDB>, column: u32) -> ArchiveDB {
 		let latest_era = backing.get(column, &LATEST_ERA_KEY)
 			.expect("Low-level database error.")
-			.map(|val| decode::<u64>(&val).expect("decoding db value failed"));
+			.map(|val| decode::<u64>(&val).expect("decoding kvstorage value failed"));
 		ArchiveDB {
 			overlay: new_memory_db(),
 			backing,

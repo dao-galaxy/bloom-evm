@@ -48,7 +48,7 @@ impl trie_db::TrieLayout for Layout {
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDB`
 ///
-/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object.
+/// Use it as a `Trie` trait object. You can use `kvstorage()` to get the backing database object.
 /// Use `get` and `contains` to query values associated with keys in the trie.
 ///
 /// # Example
@@ -91,7 +91,7 @@ pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 
 /// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDBMut`
 ///
-/// Use it as a `TrieMut` trait object. You can use `db()` to get the backing database object.
+/// Use it as a `TrieMut` trait object. You can use `kvstorage()` to get the backing database object.
 /// Note that changes are not committed to the database until `commit` is called.
 /// Querying the root or dropping the trie will commit automatically.
 

@@ -79,7 +79,7 @@ impl State {
 
         self.apply(applies,Vec::new(),false);
         let root = self.commit();
-        println!("init genesis state, root={:?}",root);
+        println!("init genesis triestate, root={:?}",root);
     }
 
     pub fn from_existing(root: H256, vicinity: BackendVicinity , db: Box<dyn JournalDB>, factories: Factories) -> TrieResult<State> {
@@ -103,7 +103,7 @@ impl State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         let mut acc = maybe_acc.unwrap_or_else(| | Account::new_basic(U256::zero(), U256::zero()));
         let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
@@ -140,8 +140,8 @@ impl State {
     }
 
     pub fn commit(&mut self) -> H256 {
-//        let res = self.db.drain_transaction_overlay().unwrap();
-//        self.db.backing().write(res);
+//        let res = self.kvstorage.drain_transaction_overlay().unwrap();
+//        self.kvstorage.backing().write(res);
 //        self.root.clone()
         let mut batch = DBTransaction::new();
         let id = H256::default();
@@ -159,7 +159,7 @@ impl State {
         let db_ret = self.factories.trie.readonly(db, &self.root);
         let ret = match db_ret {
             Ok(db) => {
-                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
                 let maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
                 let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
                 acc.storage_root()
@@ -211,7 +211,7 @@ impl Backend for State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         maybe_acc.is_some()
     }
@@ -222,7 +222,7 @@ impl Backend for State {
 
         let ret = match db_ret {
             Ok(db) => {
-                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+                let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
                 let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
                 let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
                 Basic{
@@ -244,7 +244,7 @@ impl Backend for State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         let acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
         acc.code_hash()
@@ -254,7 +254,7 @@ impl Backend for State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         let mut acc = maybe_acc.unwrap_or_else(|| Account::new_basic(U256::zero(), U256::zero()));
 
@@ -271,7 +271,7 @@ impl Backend for State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         if let Some(ref mut acc) = maybe_acc.as_mut() {
             let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
@@ -292,7 +292,7 @@ impl Backend for State {
         let db = &self.db.as_hash_db();
         let db = self.factories.trie.readonly(db, &self.root).unwrap();
 
-        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+        let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding kvstorage value failed");
         let mut maybe_acc = db.get_with(address.as_bytes(), from_rlp).unwrap();
         if let Some(acc) = maybe_acc {
             let accountdb = self.factories.accountdb.readonly(self.db.as_hash_db(), acc.address_hash(&address));
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_state() {
-        let dataPath = "test-db";
+        let dataPath = "test-kvstorage";
         let mut config = DatabaseConfig::with_columns(COLUMN_COUNT);
         let database = Arc::new(Database::open(&config, dataPath).unwrap());
         let mut db = journaldb::new(database,journaldb::Algorithm::Archive,bloom_db::COL_STATE);

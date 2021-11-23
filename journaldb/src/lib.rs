@@ -48,7 +48,7 @@ pub trait JournalDB: HashDB<KeccakHasher, DBValue> {
 	/// Returns the I/O statistics.
 	fn io_stats(&self) -> kvdb::IoStats;
 
-	/// Returns the size of journalled state in memory.
+	/// Returns the size of journalled triestate in memory.
 	/// This function has a considerable speed requirement --
 	/// it must be fast enough to call several times per block imported.
 	fn journal_size(&self) -> usize { 0 }
